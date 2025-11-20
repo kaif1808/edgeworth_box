@@ -1,0 +1,351 @@
+import numpy as np
+from scipy.optimize import minimize, brentq, minimize_scalar
+import re
+from typing import Dict, Any, Tuple, List, Union, Optional
+from simpleeval import simple_eval, NameNotDefined
+
+def parse_latex_to_numpy(latex_str: str) -> str:
+    """
+    Parses a LaTeX string into a NumPy-compatible expression.
+
+    Args:
+        latex_str (str): The LaTeX string to parse.
+
+    Returns:
+        str: A string containing the NumPy-compatible expression.
+    """
+    if not latex_str: return "0"
+    expr = latex_str.lower().replace("^", "**").replace(r"\cdot", "*")
+    replacements = {
+        r"\\ln": "np.log", r"\\log": "np.log", r"\\exp": "np.exp",
+        r"\\sqrt": "np.sqrt", r"\\min": "np.minimum", r"\\max": "np.maximum",
+        r"min": "np.minimum", r"max": "np.maximum",
+    }
+    for tex, py in replacements.items(): expr = re.sub(tex, py, expr)
+    expr = expr.replace("{", "(").replace("}", ")")
+    expr = re.sub(r'(\d)([xy])', r'\1*\2', expr)
+    return expr
+
+def evaluate_custom_utility(x: Union[float, np.ndarray], y: Union[float, np.ndarray], formula: str) -> Union[float, np.ndarray]:
+    """
+    Evaluates a custom utility formula using simpleeval for safety.
+
+    Args:
+        x (Union[float, np.ndarray]): Quantity of good X.
+        y (Union[float, np.ndarray]): Quantity of good Y.
+        formula (str): The utility formula (LaTeX-like or Python expression).
+
+    Returns:
+        Union[float, np.ndarray]: The calculated utility.
+    """
+    try:
+        # Parse LaTeX to numpy-compatible string first
+        parsed_formula = parse_latex_to_numpy(formula)
+        
+        # Define safe functions
+        functions = {
+            'np': np,
+            'abs': np.abs,
+            'log': np.log,
+            'exp': np.exp,
+            'sqrt': np.sqrt,
+            'minimum': np.minimum,
+            'maximum': np.maximum,
+            'min': np.minimum,
+            'max': np.maximum
+        }
+        
+        # Define names
+        names = {'x': x, 'y': y}
+        
+        # Use simple_eval
+        return simple_eval(parsed_formula, names=names, functions=functions)
+    except (SyntaxError, NameNotDefined, TypeError, ZeroDivisionError, Exception):
+        # Fallback for safety
+        return np.zeros_like(x) if isinstance(x, np.ndarray) else 0.0
+
+def utility_func(x: Union[float, np.ndarray], y: Union[float, np.ndarray], u_type: str, params: Dict[str, Any]) -> Union[float, np.ndarray]:
+    """
+    Calculates utility based on the specified utility function type and parameters.
+
+    Args:
+        x (Union[float, np.ndarray]): Quantity of good X.
+        y (Union[float, np.ndarray]): Quantity of good Y.
+        u_type (str): The type of utility function (e.g., "Cobb-Douglas").
+        params (Dict[str, Any]): Dictionary of parameters for the utility function.
+
+    Returns:
+        Union[float, np.ndarray]: The calculated utility.
+    """
+    x = np.maximum(x, 1e-9)
+    y = np.maximum(y, 1e-9)
+
+    if u_type == "Custom (Enter Formula)":
+        return evaluate_custom_utility(x, y, params.get('formula', 'x*y'))
+
+    alpha = params.get('alpha', 0.5)
+    beta = params.get('beta', 0.5)
+    a = params.get('a', 0.0)
+    b = params.get('b', 0.0)
+    
+    if u_type == "Cobb-Douglas":
+        return (x ** alpha) * (y ** beta)
+    elif u_type == "Perfect Substitutes":
+        return alpha * x + beta * y
+    elif u_type == "Perfect Complements (Min)": 
+        return np.minimum(alpha * x, beta * y)
+    elif u_type == "Max Preferences (Convex)": 
+        return np.maximum(alpha * x, beta * y)
+    elif u_type == "Quasi-Linear (Shifted Product)": 
+        return (x + a) * (y + b) 
+    elif u_type == "Satiation (Bliss Point)": 
+        return -1 * ((x - a)**2 + (y - b)**2)
+    elif u_type == "Mixed Cobb-Douglas": 
+        return x * (y ** alpha)
+    return 0.0
+
+def calculate_mrs(x: float, y: float, u_type: str, params: Dict[str, Any]) -> float:
+    """
+    Calculates the Marginal Rate of Substitution (MRS) at a given point.
+
+    Args:
+        x (float): Quantity of good X.
+        y (float): Quantity of good Y.
+        u_type (str): The type of utility function.
+        params (Dict[str, Any]): Dictionary of parameters for the utility function.
+
+    Returns:
+        float: The MRS at the point (x, y). Returns np.inf if MRS is infinite.
+    """
+    h = 1e-5
+    u0 = utility_func(x, y, u_type, params)
+    ux = (utility_func(x + h, y, u_type, params) - u0) / h
+    uy = (utility_func(x, y + h, u_type, params) - u0) / h
+    
+    if abs(uy) < 1e-9:
+        if abs(ux) < 1e-9: return 0.0
+        return np.inf
+    return ux / uy
+
+def get_demand(u_type: str, params: Dict[str, Any], px: float, py: float, income: float, total_x_limit: Optional[float] = None, total_y_limit: Optional[float] = None) -> Tuple[float, float]:
+    """
+    Calculates the optimal bundle (x, y) given prices and income.
+
+    Args:
+        u_type (str): The type of utility function.
+        params (Dict[str, Any]): Dictionary of parameters for the utility function.
+        px (float): Price of good X.
+        py (float): Price of good Y.
+        income (float): Total income.
+        total_x_limit (Optional[float]): Maximum available quantity of good X.
+        total_y_limit (Optional[float]): Maximum available quantity of good Y.
+
+    Returns:
+        Tuple[float, float]: The optimal quantity of X and Y.
+    """
+    # 1. Analytical Solutions for Standard Types
+    alpha = params.get('alpha', 0.5)
+    beta = params.get('beta', 0.5)
+    
+    if u_type in ["Cobb-Douglas", "Mixed Cobb-Douglas"]:
+        # CD: x = (alpha/(alpha+beta)) * I / px
+        # Mixed CD: U = x * y^alpha -> equivalent to alpha=1, beta=alpha
+        if u_type == "Mixed Cobb-Douglas":
+            eff_alpha, eff_beta = 1.0, alpha
+        else:
+            eff_alpha, eff_beta = alpha, beta
+            
+        x = (eff_alpha / (eff_alpha + eff_beta)) * income / px
+        y = (eff_beta / (eff_alpha + eff_beta)) * income / py
+        return x, y
+
+    elif u_type == "Perfect Substitutes":
+        # MRS = alpha/beta. If px/py < MRS, buy all X. If >, buy all Y.
+        mrs = alpha / beta
+        price_ratio = px / py
+        
+        if price_ratio < mrs - 1e-6:
+            return income / px, 0.0
+        elif price_ratio > mrs + 1e-6:
+            return 0.0, income / py
+        else:
+            # Indifferent. Return a point on budget line. 
+            return income / px, 0.0 
+
+    elif u_type == "Perfect Complements (Min)":
+        # Optimal path: alpha * x = beta * y => y = (alpha/beta) * x
+        # Budget: px*x + py*(alpha/beta)*x = I
+        # x * (px + py*alpha/beta) = I
+        x = income / (px + py * (alpha / beta))
+        y = (alpha / beta) * x
+        return x, y
+
+    elif u_type == "Quasi-Linear (Shifted Product)":
+        # U = (x+a)(y+b). Let X=x+a, Y=y+b. U=XY.
+        # Budget: px(X-a) + py(Y-b) = I => pxX + pyY = I + pxa + pyb = I_eff
+        # Demand for X: I_eff / 2px. Demand for Y: I_eff / 2py.
+        a = params.get('a', 0.0)
+        b = params.get('b', 0.0)
+        I_eff = income + px*a + py*b
+        
+        X = I_eff / (2 * px)
+        # Y = I_eff / (2 * py) # Unused variable
+        
+        x = max(0, X - a)
+        y = (income - px*x) / py
+        return x, y
+
+    # 2. Numerical Solution for Others (Satiation, Custom, Max Prefs)
+    # For Max Prefs (convex U), solution is at corners.
+    if u_type == "Max Preferences (Convex)":
+        # Check corners
+        x1, y1 = income / px, 0.0
+        x2, y2 = 0.0, income / py
+        u1 = utility_func(x1, y1, u_type, params)
+        u2 = utility_func(x2, y2, u_type, params)
+        return (x1, y1) if u1 >= u2 else (x2, y2)
+
+    # General Numerical Solver
+    def obj(v): return -utility_func(v[0], v[1], u_type, params)
+    def con_budget(v): return income - (px*v[0] + py*v[1])
+    
+    # Bounds
+    b_x = (0, total_x_limit) if total_x_limit else (0, None)
+    b_y = (0, total_y_limit) if total_y_limit else (0, None)
+    
+    # Guess (Midpoint of budget)
+    x0 = income / (2 * px)
+    y0 = income / (2 * py)
+    
+    res = minimize(obj, [x0, y0], bounds=[b_x, b_y], constraints={'type':'ineq', 'fun':con_budget}, tol=1e-5)
+    if res.success:
+        return res.x[0], res.x[1]
+    
+    return x0, y0
+
+def solve_walrasian_equilibrium(total_x: float, total_y: float, type_A: str, params_A: Dict[str, Any], type_B: str, params_B: Dict[str, Any], endow_A: Tuple[float, float], endow_B: Tuple[float, float]) -> Tuple[float, Tuple[float, float]]:
+    """
+    Solves for the Walrasian Equilibrium prices and allocation.
+
+    Args:
+        total_x (float): Total quantity of good X.
+        total_y (float): Total quantity of good Y.
+        type_A (str): Utility type for Agent A.
+        params_A (Dict[str, Any]): Parameters for Agent A's utility.
+        type_B (str): Utility type for Agent B.
+        params_B (Dict[str, Any]): Parameters for Agent B's utility.
+        endow_A (Tuple[float, float]): Endowment for Agent A (x, y).
+        endow_B (Tuple[float, float]): Endowment for Agent B (x, y).
+
+    Returns:
+        Tuple[float, Tuple[float, float]]: Equilibrium price of X (px) and Agent A's allocation (xA, yA).
+    """
+    # Normalize py = 1. Solve for px.
+    py = 1.0
+    
+    wAx, wAy = endow_A
+    wBx, wBy = endow_B
+    
+    def excess_demand_x(px):
+        if px <= 0: return 1e9 # Penalty for negative price
+        
+        # Income
+        IA = px * wAx + py * wAy
+        IB = px * wBx + py * wBy
+        
+        # Demand
+        xA, yA = get_demand(type_A, params_A, px, py, IA, total_x, total_y)
+        xB, yB = get_demand(type_B, params_B, px, py, IB, total_x, total_y)
+        
+        return (xA + xB) - total_x
+
+    # Root Finding for px
+    # Try to bracket the root
+    low, high = 0.01, 100.0
+    try:
+        px_eq = brentq(excess_demand_x, low, high, xtol=1e-4)
+    except ValueError:
+        # brentq failed (no sign change). Try minimize absolute excess demand.
+        res = minimize_scalar(lambda p: abs(excess_demand_x(p)), bounds=(0.01, 100.0), method='bounded')
+        px_eq = res.x
+    
+    # Calculate Final Allocation
+    IA = px_eq * wAx + py * wAy
+    xA, yA = get_demand(type_A, params_A, px_eq, py, IA, total_x, total_y)
+    
+    return px_eq, (xA, yA)
+
+def solve_contract_curve(total_x: float, total_y: float, type_A: str, params_A: Dict[str, Any], type_B: str, params_B: Dict[str, Any], uA_w: float, uB_w: float, Z_B_min: float, Z_B_max: float) -> Tuple[List[float], List[float], List[float], List[float]]:
+    """
+    Solves for the contract curve (Pareto set) and the Core.
+
+    Args:
+        total_x (float): Total quantity of good X.
+        total_y (float): Total quantity of good Y.
+        type_A (str): Utility type for Agent A.
+        params_A (Dict[str, Any]): Parameters for Agent A's utility.
+        type_B (str): Utility type for Agent B.
+        params_B (Dict[str, Any]): Parameters for Agent B's utility.
+        uA_w (float): Utility of Agent A at endowment.
+        uB_w (float): Utility of Agent B at endowment.
+        Z_B_min (float): Minimum utility for Agent B.
+        Z_B_max (float): Maximum utility for Agent B.
+
+    Returns:
+        Tuple[List[float], List[float], List[float], List[float]]: 
+            pareto_x, pareto_y, core_x, core_y coordinates.
+    """
+    pareto_x, pareto_y, core_x, core_y = [], [], [], []
+    if Z_B_max <= Z_B_min: return pareto_x, pareto_y, core_x, core_y
+
+    steps = 50 # Increased precision
+    levels_B = np.linspace(Z_B_min, Z_B_max, steps)
+    last_x = [total_x / 2, total_y / 2] 
+
+    for ub_val in levels_B:
+        def obj(v): return -utility_func(v[0], v[1], type_A, params_A)
+        def con(v): return utility_func(total_x - v[0], total_y - v[1], type_B, params_B) - ub_val
+        
+        bnds = ((0, total_x), (0, total_y))
+        res = minimize(obj, last_x, bounds=bnds, constraints={'type':'ineq', 'fun':con}, tol=1e-5)
+        
+        best_p = None
+        best_u = -np.inf
+        
+        if res.success:
+            best_p = res.x
+            last_x = res.x
+        else:
+            starts = [[0, 0], [total_x, total_y], [0, total_y], [total_x, 0]]
+            for s in starts:
+                res_retry = minimize(obj, s, bounds=bnds, constraints={'type':'ineq', 'fun':con}, tol=1e-5)
+                if res_retry.success:
+                    ua = utility_func(res_retry.x[0], res_retry.x[1], type_A, params_A)
+                    if ua > best_u:
+                        best_u = ua
+                        best_p = res_retry.x
+                        last_x = res_retry.x
+
+        if best_p is not None:
+            ua = utility_func(best_p[0], best_p[1], type_A, params_A)
+            ub_real = utility_func(total_x - best_p[0], total_y - best_p[1], type_B, params_B)
+            
+            if ub_real >= ub_val - 0.1: 
+                pareto_x.append(best_p[0])
+                pareto_y.append(best_p[1])
+                if ua >= uA_w - 1e-3 and ub_val >= uB_w - 1e-3:
+                    core_x.append(best_p[0])
+                    core_y.append(best_p[1])
+
+    # Sort points to prevent zigzag lines
+    if pareto_x:
+        p_points = sorted(zip(pareto_x, pareto_y), key=lambda k: k[0])
+        pareto_x, pareto_y = zip(*p_points)
+        pareto_x, pareto_y = list(pareto_x), list(pareto_y)
+
+    if core_x:
+        c_points = sorted(zip(core_x, core_y), key=lambda k: k[0])
+        core_x, core_y = zip(*c_points)
+        core_x, core_y = list(core_x), list(core_y)
+
+    return pareto_x, pareto_y, core_x, core_y

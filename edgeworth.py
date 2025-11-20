@@ -749,3 +749,4 @@ if we_data:
     cw3.metric(f"Agent A Trade", f"{trade_dir} {abs(net_x):.2f} X")
     
     st.caption(f"Agent A also {'Sells' if net_y < 0 else 'Buys'} {abs(net_y):.2f} Y. Net Excess Demand for X ≈ 0.00")
+
