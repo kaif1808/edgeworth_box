@@ -220,13 +220,17 @@ export default function Home() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-slate-50 p-4 rounded border border-slate-200">
                   <h3 className="font-semibold text-slate-700 mb-2">Equilibrium Prices</h3>
-                  <p>Price of X (px): <span className="font-mono">{result.equilibrium_price?.toFixed(4) || 'N/A'}</span></p>
+                  <p>Price of X (px): <span className="font-mono">
+                    {typeof result.walrasian_equilibrium?.price_ratio_px_py === 'number' 
+                      ? result.walrasian_equilibrium.price_ratio_px_py.toFixed(4) 
+                      : result.walrasian_equilibrium?.price_ratio_px_py || 'N/A'}
+                  </span></p>
                   <p>Price of Y (py): <span className="font-mono">1.0000</span> (Numeraire)</p>
                 </div>
                 <div className="bg-slate-50 p-4 rounded border border-slate-200">
                   <h3 className="font-semibold text-slate-700 mb-2">Allocation</h3>
-                  <p>Agent A: (<span className="font-mono">{result.allocation?.A[0]?.toFixed(2)}</span>, <span className="font-mono">{result.allocation?.A[1]?.toFixed(2)}</span>)</p>
-                  <p>Agent B: (<span className="font-mono">{result.allocation?.B[0]?.toFixed(2)}</span>, <span className="font-mono">{result.allocation?.B[1]?.toFixed(2)}</span>)</p>
+                  <p>Agent A: (<span className="font-mono">{result.walrasian_equilibrium?.allocation_a?.x?.toFixed(2)}</span>, <span className="font-mono">{result.walrasian_equilibrium?.allocation_a?.y?.toFixed(2)}</span>)</p>
+                  <p>Agent B: (<span className="font-mono">{result.walrasian_equilibrium?.allocation_b?.x?.toFixed(2)}</span>, <span className="font-mono">{result.walrasian_equilibrium?.allocation_b?.y?.toFixed(2)}</span>)</p>
                 </div>
               </div>
 

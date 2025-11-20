@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && echo 'Build complete. Checking output:' && ls -la .next || echo '.next not found' && ls -la public || echo 'public not found'",
     "start": "next start",
     "lint": "next lint"
   },
