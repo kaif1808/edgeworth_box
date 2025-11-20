@@ -23,7 +23,13 @@ def parse_latex_to_numpy(latex_str: str) -> str:
     }
     for tex, py in replacements.items(): expr = re.sub(tex, py, expr)
     expr = expr.replace("{", "(").replace("}", ")")
-    expr = re.sub(r'(\d)([xy])', r'\1*\2', expr)
+    
+    # Handle implicit multiplication
+    expr = re.sub(r'\)\(', ')*(', expr)           # (a)(b) -> (a)*(b)
+    expr = re.sub(r'\)([xy])', r')*\1', expr)     # (a)x -> (a)*x
+    expr = re.sub(r'(\d)\(', r'\1*(', expr)       # 2(x) -> 2*(x)
+    expr = re.sub(r'(\d)([xy])', r'\1*\2', expr)  # 2x -> 2*x
+    
     return expr
 
 def evaluate_custom_utility(x: Union[float, np.ndarray], y: Union[float, np.ndarray], formula: str) -> Union[float, np.ndarray]:
