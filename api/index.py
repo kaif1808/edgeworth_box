@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import sys
 import os
 import numpy as np
@@ -7,9 +8,14 @@ import numpy as np
 # This ensures that when running api/index.py, we can import from core/
 sys.path.append(os.path.dirname(__file__))
 
-from core.economics import solve_walrasian_equilibrium, solve_contract_curve, utility_func, calculate_mrs
+try:
+    from core.economics import solve_walrasian_equilibrium, solve_contract_curve, utility_func, calculate_mrs
+except ImportError:
+    # Fallback for Vercel environment where structure might differ
+    from .core.economics import solve_walrasian_equilibrium, solve_contract_curve, utility_func, calculate_mrs
 
 app = Flask(__name__)
+CORS(app) # Enable CORS for all routes
 
 def sanitize_float(val):
     """Convert numpy floats and handle infinity for JSON serialization."""
@@ -21,8 +27,7 @@ def sanitize_float(val):
         return None
     return float(val)
 
-@app.route('/api/calculate', methods=['POST'])
-def calculate():
+def calculate_handler():
     try:
         data = request.get_json()
         if not data:
@@ -114,6 +119,34 @@ def calculate():
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
+# Register routes with multiple paths to handle Vercel rewrites defensively
+@app.route('/api/calculate', methods=['POST', 'OPTIONS'])
+def calculate_api():
+    return calculate_handler()
+
+@app.route('/calculate', methods=['POST', 'OPTIONS'])
+def calculate_root():
+    return calculate_handler()
+
+@app.route('/api/health', methods=['GET'])
+def health_api():
+    return jsonify({"status": "ok", "path": request.path})
+
+@app.route('/health', methods=['GET'])
+def health_root():
+    return jsonify({"status": "ok", "path": request.path})
+
 # For local testing
+# Catch-all for debugging routing issues
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def catch_all(path):
+    print(f"Catch-all hit: {path}")
+    return jsonify({
+        "error": "Route not found",
+        "path": path,
+        "method": request.method
+    }), 404
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

@@ -2,3 +2,7 @@ numpy
 scipy
 Flask
 simpleeval
+flask-cors
+streamlit
+plotly
+pandas
