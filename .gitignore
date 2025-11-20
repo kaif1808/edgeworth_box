@@ -1,0 +1,52 @@
+# R files
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+.gemini
+
+# Python
+# Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env/
+
+# Logs
+*.log
+
+# Cache files
+.cache/
+*.pyc
+
+# Datasets
+data
+yelp_review_small.Rda
+yelp_user_small.Rda
+yelp_academic_dataset_business.json
+yelp_academic_dataset_tip.json
+yelp_academic_dataset_checkin.json
+Archive.zip
+.RData 
+.Rhistory
+.Rprofile
+featured_data.rds
+merged_data.rds
+# Project specific
+# Processed data
+data/processed/
+
+# Trained models
+models/
+
+# Outputs
+outputs/
+
+# OS files
+.DS_Store
