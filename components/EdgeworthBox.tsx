@@ -68,9 +68,10 @@ interface EdgeworthBoxProps {
   totalResources: { x: number; y: number };
   endowmentA: { x: number; y: number };
   visualSettings?: VisualSettings;
+  darkMode?: boolean;
 }
 
-export default function EdgeworthBox({ data, totalResources, endowmentA, visualSettings }: EdgeworthBoxProps) {
+export default function EdgeworthBox({ data, totalResources, endowmentA, visualSettings, darkMode }: EdgeworthBoxProps) {
   const { contract_curve, walrasian_equilibrium, z_grid_a, z_grid_b, initial_state } = data;
 
   const traces = useMemo(() => {
@@ -139,7 +140,7 @@ export default function EdgeworthBox({ data, totalResources, endowmentA, visualS
                     coloring: 'fill',
                     showlines: false
                 },
-                colorscale: [[0, 'rgba(0,0,0,0)'], [1, 'rgba(255, 215, 0, 0.3)']], // Transparent to Gold
+                colorscale: [[0, 'rgba(0,0,0,0)'], [1, darkMode ? 'rgba(255, 215, 0, 0.2)' : 'rgba(255, 215, 0, 0.3)']], // Transparent to Gold
                 hoverinfo: 'skip',
                 name: 'Mutually Beneficial Trade Area'
             });
@@ -161,7 +162,7 @@ export default function EdgeworthBox({ data, totalResources, endowmentA, visualS
                 },
                 line: {
                     width: 1,
-                    color: 'rgba(211, 47, 47, 0.3)', // Red A
+                    color: darkMode ? 'rgba(239, 68, 68, 0.5)' : 'rgba(211, 47, 47, 0.3)', // Red A
                     dash: settings.style_A === 'dot' ? 'dot' : (settings.style_A === 'dash' ? 'dash' : 'solid')
                 },
                 hoverinfo: 'skip',
@@ -186,7 +187,7 @@ export default function EdgeworthBox({ data, totalResources, endowmentA, visualS
                     },
                     line: {
                         width: 2,
-                        color: 'rgba(211, 47, 47, 1)', // Solid Red
+                        color: darkMode ? 'rgba(239, 68, 68, 1)' : 'rgba(211, 47, 47, 1)', // Solid Red
                     },
                     hoverinfo: 'skip',
                     name: 'UA(Endowment)'
@@ -211,7 +212,7 @@ export default function EdgeworthBox({ data, totalResources, endowmentA, visualS
                 },
                 line: {
                     width: 1,
-                    color: 'rgba(25, 118, 210, 0.3)', // Blue B
+                    color: darkMode ? 'rgba(59, 130, 246, 0.5)' : 'rgba(25, 118, 210, 0.3)', // Blue B
                     dash: settings.style_B === 'dot' ? 'dot' : (settings.style_B === 'dash' ? 'dash' : 'solid')
                 },
                 hoverinfo: 'skip',
@@ -236,7 +237,7 @@ export default function EdgeworthBox({ data, totalResources, endowmentA, visualS
                     },
                     line: {
                         width: 2,
-                        color: 'rgba(25, 118, 210, 1)', // Solid Blue
+                        color: darkMode ? 'rgba(59, 130, 246, 1)' : 'rgba(25, 118, 210, 1)', // Solid Blue
                     },
                     hoverinfo: 'skip',
                     name: 'UB(Endowment)'
@@ -278,7 +279,7 @@ export default function EdgeworthBox({ data, totalResources, endowmentA, visualS
           y: [endowmentA.y],
           mode: 'markers',
           name: 'Endowment',
-          marker: { color: '#374151', size: 12, symbol: 'circle', line: {width: 2, color: 'white'} }, 
+          marker: { color: darkMode ? '#94a3b8' : '#374151', size: 12, symbol: 'circle', line: {width: 2, color: darkMode ? '#0f172a' : 'white'} }, 
           hovertemplate:
             '<b>Endowment</b><br>' +
             'XA: %{x:.2f}<br>' +
@@ -325,29 +326,46 @@ export default function EdgeworthBox({ data, totalResources, endowmentA, visualS
               y: [yAt0, yAtMax],
               mode: 'lines',
               name: 'Budget Line',
-              line: { color: '#6b7280', width: 1, dash: 'dot' }, // Gray
+              line: { color: darkMode ? '#9ca3af' : '#6b7280', width: 1, dash: 'dot' }, // Gray
               hoverinfo: 'skip'
           });
       }
     }
 
     return plotTraces;
-  }, [totalResources, endowmentA, contract_curve, walrasian_equilibrium, z_grid_a, z_grid_b, initial_state, visualSettings]);
+  }, [totalResources, endowmentA, contract_curve, walrasian_equilibrium, z_grid_a, z_grid_b, initial_state, visualSettings, darkMode]);
 
   const layout: Partial<Layout> = {
-    title: { text: 'Edgeworth Box' },
+    title: { 
+        text: 'Edgeworth Box',
+        font: { color: darkMode ? '#e2e8f0' : '#1e293b' }
+    },
     autosize: true,
+    paper_bgcolor: darkMode ? '#0f172a' : 'white',
+    plot_bgcolor: darkMode ? '#0f172a' : 'white',
     xaxis: {
-      title: { text: 'Agent A - Good X' },
+      title: { 
+        text: 'Agent A - Good X',
+        font: { color: darkMode ? '#cbd5e1' : '#334155' }
+      },
       range: [0, totalResources.x],
       showgrid: true,
+      gridcolor: darkMode ? '#334155' : '#e2e8f0',
       zeroline: true,
+      zerolinecolor: darkMode ? '#475569' : '#94a3b8',
+      tickfont: { color: darkMode ? '#cbd5e1' : '#334155' }
     },
     yaxis: {
-      title: { text: 'Agent A - Good Y' },
+      title: { 
+        text: 'Agent A - Good Y',
+        font: { color: darkMode ? '#cbd5e1' : '#334155' }
+      },
       range: [0, totalResources.y],
       showgrid: true,
+      gridcolor: darkMode ? '#334155' : '#e2e8f0',
       zeroline: true,
+      zerolinecolor: darkMode ? '#475569' : '#94a3b8',
+      tickfont: { color: darkMode ? '#cbd5e1' : '#334155' }
     },
     // We can add a second axis for Agent B if we want to be fancy, 
     // but standard Edgeworth box usually just implies it by the box limits.
@@ -363,7 +381,7 @@ export default function EdgeworthBox({ data, totalResources, endowmentA, visualS
         xanchor: 'left',
         yanchor: 'bottom',
         font: {
-            color: '#666'
+            color: darkMode ? '#94a3b8' : '#666'
         }
       },
       {
@@ -376,7 +394,7 @@ export default function EdgeworthBox({ data, totalResources, endowmentA, visualS
         xanchor: 'right',
         yanchor: 'top',
         font: {
-            color: '#666'
+            color: darkMode ? '#94a3b8' : '#666'
         }
       }
     ],
@@ -388,14 +406,15 @@ export default function EdgeworthBox({ data, totalResources, endowmentA, visualS
             x1: totalResources.x,
             y1: totalResources.y,
             line: {
-                color: 'black',
+                color: darkMode ? '#e2e8f0' : 'black',
                 width: 2
             }
         }
     ],
     legend: {
         orientation: 'h',
-        y: -0.2
+        y: -0.2,
+        font: { color: darkMode ? '#cbd5e1' : '#334155' }
     },
     margin: {
         l: 50,
@@ -406,7 +425,7 @@ export default function EdgeworthBox({ data, totalResources, endowmentA, visualS
   };
 
   return (
-    <div className="w-full h-full bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+    <div className="w-full h-full bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-gray-200 dark:border-slate-800 p-4">
       <Plot
         data={traces}
         layout={layout}

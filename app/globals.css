@@ -28,6 +28,29 @@
   --accent-b: #666666; /* Dashed lines usually, but distinct color here */
 }
 
+.dark {
+  --foreground-rgb: 226, 232, 240; /* Slate-200 */
+  --background-start-rgb: 2, 6, 23; /* Slate-950 */
+  --background-end-rgb: 15, 23, 42; /* Slate-900 */
+  
+  /* Dark Theme Colors */
+  --primary-color: #3b82f6; /* Blue-500 */
+  --primary-hover: #60a5fa; /* Blue-400 */
+  --secondary-color: #94a3b8; /* Slate-400 */
+}
+
+.dark[data-theme='textbook'] {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 0, 0, 0;
+  --background-end-rgb: 0, 0, 0;
+  
+  --primary-color: #ffffff;
+  --primary-hover: #cccccc;
+  --secondary-color: #aaaaaa;
+  --accent-a: #ffffff;
+  --accent-b: #cccccc;
+}
+
 body {
   color: rgb(var(--foreground-rgb));
   background: rgb(var(--background-start-rgb));
