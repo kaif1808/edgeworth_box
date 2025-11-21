@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { VisualSettings } from './EdgeworthBox';
 
 interface SidebarProps {
   totalResources: { x: number; y: number };
@@ -9,6 +10,8 @@ interface SidebarProps {
   setAgentA: (val: AgentParams) => void;
   agentB: AgentParams;
   setAgentB: (val: AgentParams) => void;
+  visualSettings: VisualSettings;
+  setVisualSettings: (val: VisualSettings) => void;
   onCalculate: () => void;
   loading: boolean;
   theme: 'professional' | 'textbook';
@@ -38,6 +41,35 @@ const UTILITY_TYPES = [
   "Custom (Enter Formula)"
 ];
 
+const PRESETS: Record<string, any> = {
+    "Custom": {},
+    "Standard Box (Shifted)": {
+        dim: [5, 10], endow: [3, 3],
+        A: { type: "Quasi-Linear (Shifted Product)", params: { b: 3.0 } },
+        B: { type: "Quasi-Linear (Shifted Product)", params: { b: 2.0 } }
+    },
+    "CD vs Perf. Subs": {
+        dim: [12, 12], endow: [6, 6],
+        A: { type: "Mixed Cobb-Douglas", params: { alpha: 3.0 } },
+        B: { type: "Perfect Substitutes", params: { alpha: 1.0, beta: 1.0 } }
+    },
+    "Min vs Max": {
+        dim: [6, 6], endow: [4, 1],
+        A: { type: "Perfect Complements (Min)", params: { alpha: 1.0, beta: 1.0 } },
+        B: { type: "Max Preferences (Convex)", params: { alpha: 1.0, beta: 1.0 } }
+    },
+    "Leontief vs Perf. Subs": {
+        dim: [10, 10], endow: [4, 4],
+        A: { type: "Perfect Complements (Min)", params: { alpha: 1.0, beta: 1.0 } },
+        B: { type: "Perfect Substitutes", params: { alpha: 1.0, beta: 1.0 } }
+    },
+    "Satiation (Bliss Point)": {
+        dim: [10, 10], endow: [4, 8],
+        A: { type: "Satiation (Bliss Point)", params: { a: 3.0, b: 3.0 } },
+        B: { type: "Cobb-Douglas", params: { alpha: 1.0, beta: 1.0 } }
+    }
+};
+
 export const Sidebar: React.FC<SidebarProps> = ({
   totalResources,
   setTotalResources,
@@ -47,13 +79,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setAgentA,
   agentB,
   setAgentB,
+  visualSettings,
+  setVisualSettings,
   onCalculate,
   loading,
   theme,
   toggleTheme,
   setShowHelp
 }) => {
-  
+  const [selectedPreset, setSelectedPreset] = useState("Custom");
+  const [showVisSettings, setShowVisSettings] = useState(false);
+
+  const loadPreset = (presetName: string) => {
+    setSelectedPreset(presetName);
+    const p = PRESETS[presetName];
+    if (!p || Object.keys(p).length === 0) return;
+
+    if (p.dim) setTotalResources({ x: p.dim[0], y: p.dim[1] });
+    if (p.endow) setEndowmentA({ x: p.endow[0], y: p.endow[1] });
+    if (p.A) setAgentA(p.A);
+    if (p.B) setAgentB(p.B);
+  };
+
   const renderParamsInput = (agent: AgentParams, setAgent: (val: AgentParams) => void, label: string) => {
     const handleChange = (key: string, value: any) => {
       setAgent({
@@ -157,6 +204,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
       
+      {/* Presets */}
+      <div className="flex flex-col gap-2">
+        <label className="font-semibold text-sm">Load Scenario</label>
+        <select 
+          value={selectedPreset} 
+          onChange={(e) => loadPreset(e.target.value)}
+          className="border p-2 rounded w-full text-sm bg-white"
+        >
+          {Object.keys(PRESETS).map(k => <option key={k} value={k}>{k}</option>)}
+        </select>
+      </div>
+      
       {/* Total Resources */}
       <div className="flex flex-col gap-2">
         <h2 className="font-semibold">Total Resources</h2>
@@ -227,6 +286,63 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {UTILITY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
         {renderParamsInput(agentB, setAgentB, "Agent B")}
+      </div>
+
+      {/* Visual Settings */}
+      <div className="border rounded bg-white">
+        <button 
+          className="w-full p-2 text-left font-semibold text-slate-700 flex justify-between items-center"
+          onClick={() => setShowVisSettings(!showVisSettings)}
+        >
+          🎨 Visual Settings
+          <svg className={`w-4 h-4 transform transition-transform ${showVisSettings ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+        </button>
+        
+        {showVisSettings && (
+          <div className="p-2 flex flex-col gap-2 border-t">
+            <div className="grid grid-cols-2 gap-2 text-sm">
+               <label className="flex items-center gap-2"><input type="checkbox" checked={visualSettings.show_endow} onChange={(e) => setVisualSettings({...visualSettings, show_endow: e.target.checked})} /> Endowment</label>
+               <label className="flex items-center gap-2"><input type="checkbox" checked={visualSettings.show_core} onChange={(e) => setVisualSettings({...visualSettings, show_core: e.target.checked})} /> Core</label>
+               <label className="flex items-center gap-2"><input type="checkbox" checked={visualSettings.show_pareto} onChange={(e) => setVisualSettings({...visualSettings, show_pareto: e.target.checked})} /> Pareto Set</label>
+               <label className="flex items-center gap-2"><input type="checkbox" checked={visualSettings.show_we} onChange={(e) => setVisualSettings({...visualSettings, show_we: e.target.checked})} /> Walrasian Eq</label>
+               <label className="flex items-center gap-2"><input type="checkbox" checked={visualSettings.show_curves_A} onChange={(e) => setVisualSettings({...visualSettings, show_curves_A: e.target.checked})} /> Curves A</label>
+               <label className="flex items-center gap-2"><input type="checkbox" checked={visualSettings.show_curves_B} onChange={(e) => setVisualSettings({...visualSettings, show_curves_B: e.target.checked})} /> Curves B</label>
+               <label className="flex items-center gap-2"><input type="checkbox" checked={visualSettings.line_mode} onChange={(e) => setVisualSettings({...visualSettings, line_mode: e.target.checked})} /> Connect Lines</label>
+            </div>
+            
+            <div className="mt-2">
+                <h4 className="text-xs font-semibold mb-1">Line Styles</h4>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                        <span className="block text-slate-500 mb-1">Agent A</span>
+                        <select value={visualSettings.style_A} onChange={(e) => setVisualSettings({...visualSettings, style_A: e.target.value})} className="border rounded w-full p-1">
+                            <option value="solid">Solid</option>
+                            <option value="dot">Dotted</option>
+                            <option value="dash">Dashed</option>
+                        </select>
+                    </div>
+                    <div>
+                        <span className="block text-slate-500 mb-1">Agent B</span>
+                        <select value={visualSettings.style_B} onChange={(e) => setVisualSettings({...visualSettings, style_B: e.target.value})} className="border rounded w-full p-1">
+                            <option value="solid">Solid</option>
+                            <option value="dot">Dotted</option>
+                            <option value="dash">Dashed</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div className="mt-2">
+                 <h4 className="text-xs font-semibold mb-1">Curve Density</h4>
+                 <input 
+                   type="range" min="10" max="100" step="5" 
+                   value={visualSettings.n_curves} 
+                   onChange={(e) => setVisualSettings({...visualSettings, n_curves: parseInt(e.target.value)})}
+                   className="w-full"
+                 />
+            </div>
+          </div>
+        )}
       </div>
 
       <button

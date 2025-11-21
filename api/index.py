@@ -106,10 +106,71 @@ def calculate_handler():
             "core_points": [{"x": sanitize_float(x), "y": sanitize_float(y)} for x, y in zip(core_x, core_y)]
         }
         
+        # 4. Grid Generation (if requested)
+        include_grid = data.get('include_grid', True) 
+        z_grid_a = []
+        z_grid_b = []
+        
+        if include_grid:
+            try:
+                N = 50 # Grid density
+                x_vec = np.linspace(0, total_x, N)
+                y_vec = np.linspace(0, total_y, N)
+                X, Y = np.meshgrid(x_vec, y_vec)
+                
+                # Calculate Utility A
+                # utility_func handles numpy arrays if vectorized correctly. 
+                # We'll assume it handles arrays or wrap if needed.
+                Z_A = utility_func(X, Y, type_a, params_a)
+                if isinstance(Z_A, (float, int)): Z_A = np.full_like(X, Z_A)
+                
+                # Calculate Utility B
+                # B's utility depends on (total_x - x, total_y - y)
+                Z_B = utility_func(total_x - X, total_y - Y, type_b, params_b)
+                if isinstance(Z_B, (float, int)): Z_B = np.full_like(X, Z_B)
+                
+                # Convert to list for JSON (row-major)
+                # We need to handle NaN/Inf in grids too
+                z_grid_a = [[sanitize_float(val) for val in row] for row in Z_A]
+                z_grid_b = [[sanitize_float(val) for val in row] for row in Z_B]
+            except Exception as e:
+                print(f"Grid generation error: {e}")
+                # Fallback to empty grids if calculation fails
+                z_grid_a = []
+                z_grid_b = []
+
+        # 5. Analysis
+        mrs_a_val = mrs_a_init if not np.isinf(mrs_a_init) else 1e9
+        mrs_b_val = mrs_b_init if not np.isinf(mrs_b_init) else 1e9
+        
+        mrs_diff = abs(mrs_a_val - mrs_b_val)
+        # If either MRS is infinite, we might be at a corner solution or efficient boundary
+        efficient = mrs_diff < 0.05 or np.isinf(mrs_a_init) or np.isinf(mrs_b_init)
+        
+        trade_advice = ""
+        if not efficient:
+            if mrs_a_val > mrs_b_val:
+                 # MRS_A > MRS_B => A values X more relative to Y than B does.
+                 # A should buy X, sell Y.
+                 trade_advice = "Agent A should buy X and sell Y."
+            else:
+                 trade_advice = "Agent B should buy X and sell Y."
+        else:
+            trade_advice = "Allocation is Pareto efficient."
+            
+        analysis = {
+            "pareto_efficient": efficient,
+            "mrs_difference": sanitize_float(mrs_diff),
+            "trade_advice": trade_advice
+        }
+
         response = {
             "initial_state": initial_state,
             "walrasian_equilibrium": walrasian_equilibrium,
-            "contract_curve": contract_curve
+            "contract_curve": contract_curve,
+            "z_grid_a": z_grid_a,
+            "z_grid_b": z_grid_b,
+            "analysis": analysis
         }
         
         return jsonify(response)

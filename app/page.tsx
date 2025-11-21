@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import EdgeworthBox from '@/components/EdgeworthBox';
+import EdgeworthBox, { VisualSettings } from '@/components/EdgeworthBox';
 import { Sidebar, AgentParams } from '@/components/Sidebar';
 
 export default function Home() {
@@ -16,6 +16,23 @@ export default function Home() {
   const [agentB, setAgentB] = useState<AgentParams>({
     type: "Cobb-Douglas",
     params: { alpha: 0.5, beta: 0.5 }
+  });
+
+  const [visualSettings, setVisualSettings] = useState<VisualSettings>({
+    show_endow: true,
+    show_core: true,
+    show_pareto: true,
+    show_lens: true,
+    show_curves_A: true,
+    show_curves_B: true,
+    line_mode: false,
+    show_we: false,
+    style_A: 'solid',
+    style_B: 'dot',
+    ic_mode: 'Auto (Density)',
+    n_curves: 30,
+    n_curves_A: 10,
+    n_curves_B: 10
   });
 
   const [result, setResult] = useState<any>(null);
@@ -38,6 +55,7 @@ export default function Home() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          include_grid: true,
           dimensions: {
             total_x: totalResources.x,
             total_y: totalResources.y
@@ -141,6 +159,8 @@ export default function Home() {
         setAgentA={setAgentA}
         agentB={agentB}
         setAgentB={setAgentB}
+        visualSettings={visualSettings}
+        setVisualSettings={setVisualSettings}
         onCalculate={handleCalculate}
         loading={loading}
         theme={theme}
@@ -159,6 +179,7 @@ export default function Home() {
                   data={result}
                   totalResources={totalResources}
                   endowmentA={endowmentA}
+                  visualSettings={visualSettings}
                 />
               </div>
               
@@ -178,6 +199,14 @@ export default function Home() {
                   <p>Agent B: (<span className="font-mono">{result.walrasian_equilibrium?.allocation_b?.x?.toFixed(2)}</span>, <span className="font-mono">{result.walrasian_equilibrium?.allocation_b?.y?.toFixed(2)}</span>)</p>
                 </div>
               </div>
+              
+              {result.analysis && (
+                  <div className={`p-4 rounded border ${result.analysis.pareto_efficient ? 'bg-green-50 border-green-200 text-green-800' : 'bg-yellow-50 border-yellow-200 text-yellow-800'}`}>
+                      <h3 className="font-bold mb-2">{result.analysis.pareto_efficient ? '✅ Pareto Efficient' : '⚠️ Inefficient Allocation'}</h3>
+                      <p className="mb-1">MRS Difference: {typeof result.analysis.mrs_difference === 'number' ? result.analysis.mrs_difference.toFixed(4) : result.analysis.mrs_difference}</p>
+                      {result.analysis.trade_advice && <p className="font-medium">{result.analysis.trade_advice}</p>}
+                  </div>
+              )}
 
               <div className="mt-4">
                 <details className="group">
