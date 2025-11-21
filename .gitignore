@@ -51,3 +51,7 @@ outputs/
 # OS files
 .DS_Store
 node_modules
+
+# Next.js build artifacts
+.next/
+out/
