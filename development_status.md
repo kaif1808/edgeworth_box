@@ -1,6 +1,11 @@
 # Development Status
 
 ## 2025-11-21
+- **Backend**: Robustified Pareto set calculation logic in `api/core/economics.py`.
+  - Added `is_convex_preference` to better handle non-convex utility functions (e.g., Max Preferences).
+  - Implemented a gradient-based `verify_pareto_efficiency` check to robustly identify Pareto-efficient points, including corner solutions.
+  - Updated `solve_contract_curve` to explicitly sample boundary edges and verify candidates, ensuring correct rendering for complex preference structures (Quasi-Linear, Satiation, etc.).
+- **Test**: Created `tests/test_pareto_examples.py` to verify backend logic against analytical solutions from standard economic examples.
 - **Feature**: Integrated live updates for Edgeworth Box simulation with debounced API calls.
 - **Feature**: Added slider controls for Total Resources and Endowments in the Sidebar.
 - **Visualization**: Implemented "Exchange Lens" (mutually beneficial trade area) shading.

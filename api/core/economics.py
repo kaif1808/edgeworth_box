@@ -115,6 +115,99 @@ def utility_func(x: Union[float, np.ndarray], y: Union[float, np.ndarray], u_typ
         return x * (y ** alpha)
     return 0.0
 
+def is_convex_preference(u_type: str) -> bool:
+    """
+    Determines if the preference relation is convex (quasi-concave utility).
+    Returns True for standard preferences (Cobb-Douglas, etc.).
+    Returns False for non-convex preferences (e.g., Max Preferences).
+    """
+    if u_type == "Max Preferences (Convex)":
+        return False
+    # Assume others are convex (standard)
+    return True
+
+def verify_pareto_efficiency(x: float, y: float, total_x: float, total_y: float,
+                           type_A: str, params_A: Dict[str, Any],
+                           type_B: str, params_B: Dict[str, Any]) -> bool:
+    """
+    Verifies if a point (x, y) is Pareto efficient by checking for local improvements.
+    Uses gradients to find potential improvement directions.
+    """
+    h = 1e-5
+    
+    # 1. Calculate Gradients locally
+    def get_grad(u_func, type_u, params_u, px, py):
+        u0 = u_func(px, py, type_u, params_u)
+        ux = (u_func(px + h, py, type_u, params_u) - u0) / h
+        uy = (u_func(px, py + h, type_u, params_u) - u0) / h
+        return np.array([ux, uy]), u0
+
+    gA, uA_curr = get_grad(utility_func, type_A, params_A, x, y)
+    
+    # For B, inputs are (total_x - x, total_y - y).
+    # Gradient w.r.t x, y (A's coords) is -1 * Gradient w.r.t B's inputs
+    # because d(TB - x)/dx = -1.
+    gB_inputs, uB_curr = get_grad(utility_func, type_B, params_B, total_x - x, total_y - y)
+    gB_wrt_A = -gB_inputs 
+    
+    # Normalize gradients to get directions (avoid division by zero)
+    norm_A = np.linalg.norm(gA)
+    norm_B = np.linalg.norm(gB_wrt_A)
+    
+    dirs = []
+    if norm_A > 1e-9: dirs.append(gA / norm_A)
+    if norm_B > 1e-9: dirs.append(gB_wrt_A / norm_B)
+    
+    # Bisector (compromise direction)
+    if norm_A > 1e-9 and norm_B > 1e-9:
+        bisect = (gA / norm_A) + (gB_wrt_A / norm_B)
+        if np.linalg.norm(bisect) > 1e-9:
+            dirs.append(bisect / np.linalg.norm(bisect))
+            
+    # Add standard 8 directions for robustness (especially at corners/non-smooth)
+    eps = 1e-4
+    # We scale directions by eps
+    standard_dirs = [
+        (1,0), (-1,0), (0,1), (0,-1),
+        (1,1), (1,-1), (-1,1), (-1,-1)
+    ]
+    
+    # Combine all test displacements
+    test_displacements = [np.array(d) * eps for d in standard_dirs]
+    for d in dirs:
+        test_displacements.append(d * eps)
+        
+    # Check candidates
+    tol = 1e-7
+    
+    for dvec in test_displacements:
+        dx, dy = dvec[0], dvec[1]
+        nx, ny = x + dx, y + dy
+        
+        # Feasibility check
+        if nx < -1e-9 or ny < -1e-9 or nx > total_x + 1e-9 or ny > total_y + 1e-9:
+            continue
+            
+        # Clamp
+        nx = max(0, min(total_x, nx))
+        ny = max(0, min(total_y, ny))
+        
+        # Re-eval
+        uA_new = utility_func(nx, ny, type_A, params_A)
+        uB_new = utility_func(total_x - nx, total_y - ny, type_B, params_B)
+        
+        # Check improvement
+        # Strict for one, weak for other
+        A_improved = uA_new > uA_curr + tol
+        B_improved = uB_new > uB_curr + tol
+        A_weak = uA_new >= uA_curr - tol
+        B_weak = uB_new >= uB_curr - tol
+        
+        if (A_improved and B_weak) or (B_improved and A_weak):
+             return False
+             
+    return True
+
 def calculate_mrs(x: float, y: float, u_type: str, params: Dict[str, Any]) -> float:
     """
     Calculates the Marginal Rate of Substitution (MRS) at a given point.
@@ -289,98 +382,104 @@ def solve_walrasian_equilibrium(total_x: float, total_y: float, type_A: str, par
 def solve_contract_curve(total_x: float, total_y: float, type_A: str, params_A: Dict[str, Any], type_B: str, params_B: Dict[str, Any], uA_w: float, uB_w: float, Z_B_min: float, Z_B_max: float) -> Tuple[List[float], List[float], List[float], List[float]]:
     """
     Solves for the contract curve (Pareto set) and the Core.
-
-    Args:
-        total_x (float): Total quantity of good X.
-        total_y (float): Total quantity of good Y.
-        type_A (str): Utility type for Agent A.
-        params_A (Dict[str, Any]): Parameters for Agent A's utility.
-        type_B (str): Utility type for Agent B.
-        params_B (Dict[str, Any]): Parameters for Agent B's utility.
-        uA_w (float): Utility of Agent A at endowment.
-        uB_w (float): Utility of Agent B at endowment.
-        Z_B_min (float): Minimum utility for Agent B.
-        Z_B_max (float): Maximum utility for Agent B.
-
-    Returns:
-        Tuple[List[float], List[float], List[float], List[float]]: 
-            pareto_x, pareto_y, core_x, core_y coordinates.
+    Includes checks for convexity and a fail-safe Pareto verification.
     """
-    pareto_x, pareto_y, core_x, core_y = [], [], [], []
-    if Z_B_max <= Z_B_min: return pareto_x, pareto_y, core_x, core_y
-
-    steps = 50 # Increased precision
-    levels_B = np.linspace(Z_B_min, Z_B_max, steps)
-    last_x = [total_x / 2, total_y / 2] 
-
-    for ub_val in levels_B:
-        def obj(v): return -utility_func(v[0], v[1], type_A, params_A)
-        def con(v): return utility_func(total_x - v[0], total_y - v[1], type_B, params_B) - ub_val
-        
-        bnds = ((0, total_x), (0, total_y))
-        res = minimize(obj, last_x, bounds=bnds, constraints={'type':'ineq', 'fun':con}, tol=1e-5)
-        
-        best_p = None
-        best_u = -np.inf
-        
-        if res.success:
-            best_p = res.x
-            last_x = res.x
-        else:
-            starts = [[0, 0], [total_x, total_y], [0, total_y], [total_x, 0]]
-            for s in starts:
-                res_retry = minimize(obj, s, bounds=bnds, constraints={'type':'ineq', 'fun':con}, tol=1e-5)
-                if res_retry.success:
-                    ua = utility_func(res_retry.x[0], res_retry.x[1], type_A, params_A)
-                    if ua > best_u:
-                        best_u = ua
-                        best_p = res_retry.x
-                        last_x = res_retry.x
-
-        if best_p is not None:
-            ua = utility_func(best_p[0], best_p[1], type_A, params_A)
-            ub_real = utility_func(total_x - best_p[0], total_y - best_p[1], type_B, params_B)
-            
-            if ub_real >= ub_val - 0.1: 
-                pareto_x.append(best_p[0])
-                pareto_y.append(best_p[1])
-                if ua >= uA_w - 1e-3 and ub_val >= uB_w - 1e-3:
-                    core_x.append(best_p[0])
-                    core_y.append(best_p[1])
-
-    # Add corners if they are Pareto efficient (usually yes for monotonic preferences)
-    # Corner 1: A at (0,0), B at (TotalX, TotalY)
-    p1 = (0.0, 0.0)
-    u1_A = utility_func(p1[0], p1[1], type_A, params_A)
-    u1_B = utility_func(total_x - p1[0], total_y - p1[1], type_B, params_B)
+    pareto_candidates = []
     
-    # Corner 2: A at (TotalX, TotalY), B at (0,0)
-    p2 = (total_x, total_y)
-    u2_A = utility_func(p2[0], p2[1], type_A, params_A)
-    u2_B = utility_func(total_x - p2[0], total_y - p2[1], type_B, params_B)
+    # 1. Optimization Sweep (Good for Interior & Standard Convex Preferences)
+    # We check if we should prioritize interior or boundary based on convexity
+    convex_A = is_convex_preference(type_A)
+    convex_B = is_convex_preference(type_B)
+    
+    steps = 100 
+    if Z_B_max > Z_B_min and (convex_A and convex_B):
+        levels_B = np.linspace(Z_B_min, Z_B_max, steps)
+        last_x = [total_x / 2, total_y / 2] 
+        
+        for ub_val in levels_B:
+            def obj(v): return -utility_func(v[0], v[1], type_A, params_A)
+            def con(v): return utility_func(total_x - v[0], total_y - v[1], type_B, params_B) - ub_val
+            
+            bnds = ((0, total_x), (0, total_y))
+            # Try to keep close to previous solution for continuity
+            res = minimize(obj, last_x, bounds=bnds, constraints={'type':'ineq', 'fun':con}, tol=1e-5)
+            
+            best_p = None
+            best_u = -np.inf
+            
+            if res.success:
+                best_p = res.x
+                last_x = res.x
+            else:
+                starts = [[0, 0], [total_x, total_y], [0, total_y], [total_x, 0], [total_x/2, total_y/2]]
+                for s in starts:
+                    res_retry = minimize(obj, s, bounds=bnds, constraints={'type':'ineq', 'fun':con}, tol=1e-5)
+                    if res_retry.success:
+                        ua = utility_func(res_retry.x[0], res_retry.x[1], type_A, params_A)
+                        if ua > best_u:
+                            best_u = ua
+                            best_p = res_retry.x
+                            last_x = res_retry.x
 
-    # Add corners to Pareto if unique
-    for px, py, ua, ub in [(p1[0], p1[1], u1_A, u1_B), (p2[0], p2[1], u2_A, u2_B)]:
-        # Check if close to any existing point
-        is_present = any(abs(px - x) < 1e-3 and abs(py - y) < 1e-3 for x, y in zip(pareto_x, pareto_y))
-        if not is_present:
-             pareto_x.append(px)
-             pareto_y.append(py)
-             
-             # Check Core Condition
-             if ua >= uA_w - 1e-3 and ub >= uB_w - 1e-3:
-                 core_x.append(px)
-                 core_y.append(py)
+            if best_p is not None:
+                ub_real = utility_func(total_x - best_p[0], total_y - best_p[1], type_B, params_B)
+                if ub_real >= ub_val - 0.1: # Relaxed tolerance for constraint
+                    pareto_candidates.append((best_p[0], best_p[1]))
 
-    # Sort points to prevent zigzag lines
-    if pareto_x:
-        p_points = sorted(zip(pareto_x, pareto_y), key=lambda k: k[0])
-        pareto_x, pareto_y = zip(*p_points)
-        pareto_x, pareto_y = list(pareto_x), list(pareto_y)
+    # 2. Boundary Check (Crucial for Non-Convex / Concave Preferences, and Corners)
+    # Always check boundaries as fail-safe for corner solutions
+    if True:
+        num_edge = 100
+        edge1 = [(x, 0.0) for x in np.linspace(0, total_x, num_edge)]
+        edge2 = [(x, total_y) for x in np.linspace(0, total_x, num_edge)]
+        edge3 = [(0.0, y) for y in np.linspace(0, total_y, num_edge)]
+        edge4 = [(total_x, y) for y in np.linspace(0, total_y, num_edge)]
+        pareto_candidates.extend(edge1 + edge2 + edge3 + edge4)
+        
+        # Also add exact corners
+        pareto_candidates.extend([(0.0, 0.0), (total_x, total_y), (0.0, total_y), (total_x, 0.0)])
 
-    if core_x:
-        c_points = sorted(zip(core_x, core_y), key=lambda k: k[0])
-        core_x, core_y = zip(*c_points)
-        core_x, core_y = list(core_x), list(core_y)
+    # 3. Verification and Filtering
+    valid_pareto = []
+    seen_points = []
+    
+    # Use a simple grid hash for deduplication
+    def get_grid_key(p):
+        return (int(p[0] * 100), int(p[1] * 100))
+    
+    seen_keys = set()
+
+    for px, py in pareto_candidates:
+        # Quick bounds check
+        px = max(0, min(total_x, px))
+        py = max(0, min(total_y, py))
+        
+        key = get_grid_key((px, py))
+        if key in seen_keys:
+            continue
+            
+        # Fail-safe verification
+        if verify_pareto_efficiency(px, py, total_x, total_y, type_A, params_A, type_B, params_B):
+            valid_pareto.append((px, py))
+            seen_keys.add(key)
+
+    # 4. Sort and Extract Core
+    pareto_x, pareto_y = [], []
+    core_x, core_y = [], []
+    
+    if valid_pareto:
+        # Sort by X, then Y
+        valid_pareto.sort(key=lambda p: (p[0], p[1]))
+        
+        for px, py in valid_pareto:
+            pareto_x.append(px)
+            pareto_y.append(py)
+            
+            ua = utility_func(px, py, type_A, params_A)
+            ub = utility_func(total_x - px, total_y - py, type_B, params_B)
+            
+            if ua >= uA_w - 1e-3 and ub >= uB_w - 1e-3:
+                core_x.append(px)
+                core_y.append(py)
 
     return pareto_x, pareto_y, core_x, core_y
