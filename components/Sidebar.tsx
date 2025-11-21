@@ -52,7 +52,7 @@ const PRESETS: Record<string, any> = {
     },
     "CD vs Perf. Subs": {
         dim: [12, 12], endow: [6, 6],
-        A: { type: "Mixed Cobb-Douglas", params: { alpha: 3.0 } },
+        A: { type: "Mixed Cobb-Douglas", params: { alpha: 0.8 } },
         B: { type: "Perfect Substitutes", params: { alpha: 1.0, beta: 1.0 } }
     },
     "Min vs Max": {
@@ -175,10 +175,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const renderParamsInput = (agent: AgentParams, setAgent: (val: AgentParams) => void, label: string) => {
+    const isCobbDouglas = agent.type === "Cobb-Douglas";
+    
     const handleChange = (key: string, value: any) => {
+      let newParams = { ...agent.params, [key]: value };
+
+      // Enforce Cobb-Douglas constraint: alpha + beta <= 1
+      if (isCobbDouglas && (key === 'alpha' || key === 'beta')) {
+        const alpha = key === 'alpha' ? value : (agent.params.alpha ?? 0.5);
+        const beta = key === 'beta' ? value : (agent.params.beta ?? 0.5);
+
+        if (alpha + beta > 1.0) {
+          if (key === 'alpha') {
+            // Adjust beta to satisfy constraint
+            newParams.beta = Number(Math.max(0.01, 1.0 - alpha).toFixed(3));
+          } else {
+            // Adjust alpha to satisfy constraint
+            newParams.alpha = Number(Math.max(0.01, 1.0 - beta).toFixed(3));
+          }
+        }
+      }
+
       setAgent({
         ...agent,
-        params: { ...agent.params, [key]: value }
+        params: newParams
       });
     };
 
@@ -206,18 +226,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <NumericControl
                     label="Alpha (α)"
                     value={agent.params.alpha ?? 0.5}
-                    min={0.1}
-                    max={10}
-                    step={0.1}
+                    min={0.01}
+                    max={1.0}
+                    step={0.05}
                     onChange={(val) => handleChange('alpha', Number(val.toFixed(3)))}
                   />
                   {agent.type !== "Mixed Cobb-Douglas" && (
                     <NumericControl
                       label="Beta (β)"
                       value={agent.params.beta ?? 0.5}
-                      min={0.1}
-                      max={10}
-                      step={0.1}
+                      min={0.01}
+                      max={isCobbDouglas ? Number((1.0 - (agent.params.alpha ?? 0.5)).toFixed(3)) : 1.0}
+                      step={0.05}
                       onChange={(val) => handleChange('beta', Number(val.toFixed(3)))}
                     />
                   )}

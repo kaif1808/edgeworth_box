@@ -514,3 +514,60 @@ def solve_contract_curve(total_x: float, total_y: float, type_A: str, params_A: 
                 core_y.append(py)
 
     return pareto_x, pareto_y, core_x, core_y
+
+def generate_workings(total_x, total_y, type_a, params_a, type_b, params_b, endow_a, endow_b, px, alloc_a, u_a_eq, u_b_eq, mrs_a_eq, mrs_b_eq):
+    workings = {}
+
+    # 1. Primitives
+    workings['1_primitives'] = {
+        "title": "1. Primitives & Endowments",
+        "content": [
+            "We start with two agents, A and B.",
+            f"Total Resources: $X = {total_x}, Y = {total_y}$",
+            f"Agent A Utility: {type_a}",
+            f"Agent B Utility: {type_b}",
+            f"Endowment A: $w_A = ({endow_a[0]:.2f}, {endow_a[1]:.2f})$",
+            f"Endowment B: $w_B = ({endow_b[0]:.2f}, {endow_b[1]:.2f})$"
+        ]
+    }
+
+    # 2. Equilibrium
+    workings['2_equilibrium'] = {
+        "title": "2. Walrasian Equilibrium",
+        "content": [
+            "The Walrasian Equilibrium is found where excess demand is zero.",
+            f"Equilibrium Price Ratio: $p_x/p_y = {px:.4f}$ (with $p_y = 1$)",
+            "Allocation:",
+            f"Agent A: $x_A = {alloc_a[0]:.2f}, y_A = {alloc_a[1]:.2f}$",
+            f"Agent B: $x_B = {total_x - alloc_a[0]:.2f}, y_B = {total_y - alloc_a[1]:.2f}$"
+        ]
+    }
+
+    # 3. Efficiency
+    # Helper to format MRS safely
+    def format_mrs(val):
+        if np.isinf(val):
+            if val > 0:
+                return r"\infty"
+            else:
+                return r"-\infty"
+        return f"{val:.4f}"
+
+    # Helper for difference
+    if np.isinf(mrs_a_eq) or np.isinf(mrs_b_eq):
+        diff_str = r"\text{N/A (Corner/Infinite)}"
+    else:
+        diff_str = f"{abs(mrs_a_eq - mrs_b_eq):.4f}"
+
+    workings['3_efficiency'] = {
+        "title": "3. Pareto Efficiency Check",
+        "content": [
+            "At the equilibrium allocation, we calculate the Marginal Rate of Substitution (MRS) for each agent.",
+            f"MRS A: ${format_mrs(mrs_a_eq)}$",
+            f"MRS B: ${format_mrs(mrs_b_eq)}$",
+            f"Difference: $|MRS_A - MRS_B| = {diff_str}$",
+            "If the difference is close to zero, the allocation is Pareto efficient."
+        ]
+    }
+
+    return workings
