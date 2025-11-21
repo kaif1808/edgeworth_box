@@ -1,8 +1,10 @@
 import numpy as np
 from scipy.optimize import minimize, brentq, minimize_scalar
 import re
+import ast
+import operator
 from typing import Dict, Any, Tuple, List, Union, Optional
-from simpleeval import simple_eval, NameNotDefined
+from simpleeval import simple_eval, SimpleEval, NameNotDefined
 
 def parse_latex_to_numpy(latex_str: str) -> str:
     """
@@ -64,8 +66,11 @@ def evaluate_custom_utility(x: Union[float, np.ndarray], y: Union[float, np.ndar
         # Define names
         names = {'x': x, 'y': y}
         
-        # Use simple_eval
-        return simple_eval(parsed_formula, names=names, functions=functions)
+        # Use SimpleEval with overridden Pow operator to support numpy arrays
+        s = SimpleEval(names=names, functions=functions)
+        s.operators[ast.Pow] = operator.pow
+        
+        return s.eval(parsed_formula)
     except (SyntaxError, NameNotDefined, TypeError, ZeroDivisionError, Exception):
         # Fallback for safety
         return np.zeros_like(x) if isinstance(x, np.ndarray) else 0.0
