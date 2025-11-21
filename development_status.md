@@ -8,6 +8,9 @@
 - **Backend**: Improved contract curve solver to explicitly check and include efficient corner solutions (origins).
 - **Fix**: Resolved "Object of type bool is not JSON serializable" error in API by explicitly casting NumPy boolean to Python boolean in `api/index.py`.
 - **Fix**: Reduced serverless function bundle size by removing unused heavy dependencies (`streamlit`, `plotly`, `pandas`) from `requirements.txt`, resolving Vercel deployment errors.
+- **UI**: Rebuilt all sidebar parameter controls with synchronized sliders, manual inputs, and +/- nudge buttons to match the Streamlit reference workflow.
+- **Visualization**: Added a Density vs Manual toggle for indifference-curve rendering and plumbed manual curve counts through `EdgeworthBox`.
+- **Test**: `npm run build` (runs lint + typecheck) to verify the updated UI/visualization logic.
 
 ## 2025-11-20
 - **Feature**: Added support for custom LaTeX utility functions and expanded utility types (Cobb-Douglas, Perfect Substitutes, Complements, etc.) in the frontend.

@@ -88,6 +88,18 @@ export default function EdgeworthBox({ data, totalResources, endowmentA, visualS
         n_curves_B: 10
     };
 
+    const sanitizeCurves = (value?: number, fallback = 30) => {
+      const raw = typeof value === 'number' ? value : fallback;
+      return Math.max(1, Math.min(100, raw));
+    };
+
+    const curvesCountA = settings.ic_mode === 'Manual'
+      ? sanitizeCurves(settings.n_curves_A, settings.n_curves)
+      : sanitizeCurves(settings.n_curves);
+    const curvesCountB = settings.ic_mode === 'Manual'
+      ? sanitizeCurves(settings.n_curves_B, settings.n_curves)
+      : sanitizeCurves(settings.n_curves);
+
     // 0. Grids & Lens (Bottom Layer)
     if (z_grid_a && z_grid_b && z_grid_a.length > 0 && z_grid_b.length > 0) {
         const N = z_grid_a.length;
@@ -138,7 +150,7 @@ export default function EdgeworthBox({ data, totalResources, endowmentA, visualS
                 type: 'contour',
                 showscale: false,
                 colorscale: 'Reds',
-                ncontours: settings.n_curves,
+                  ncontours: curvesCountA,
                 contours: {
                     coloring: 'lines',
                     showlabels: false,
@@ -188,7 +200,7 @@ export default function EdgeworthBox({ data, totalResources, endowmentA, visualS
                 type: 'contour',
                 showscale: false,
                 colorscale: 'Blues',
-                ncontours: settings.n_curves,
+                  ncontours: curvesCountB,
                 contours: {
                     coloring: 'lines',
                     showlabels: false,
