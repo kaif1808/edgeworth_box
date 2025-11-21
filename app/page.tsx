@@ -307,7 +307,7 @@ export default function Home() {
                     />
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
                       <h3 className="font-semibold text-slate-700 mb-2">Equilibrium Prices</h3>
                       <p>Price of X (px): <span className="font-mono">
@@ -321,6 +321,21 @@ export default function Home() {
                       <h3 className="font-semibold text-slate-700 mb-2">Allocation</h3>
                       <p>Agent A: (<span className="font-mono">{result.walrasian_equilibrium?.allocation_a?.x?.toFixed(2)}</span>, <span className="font-mono">{result.walrasian_equilibrium?.allocation_a?.y?.toFixed(2)}</span>)</p>
                       <p>Agent B: (<span className="font-mono">{result.walrasian_equilibrium?.allocation_b?.x?.toFixed(2)}</span>, <span className="font-mono">{result.walrasian_equilibrium?.allocation_b?.y?.toFixed(2)}</span>)</p>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                      <h3 className="font-semibold text-slate-700 mb-2">Utility & MRS</h3>
+                      <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm">
+                        <div>
+                            <p className="font-medium text-slate-500">Agent A</p>
+                            <p>U: <span className="font-mono">{typeof result.walrasian_equilibrium?.utility_a === 'number' ? result.walrasian_equilibrium.utility_a.toFixed(2) : result.walrasian_equilibrium?.utility_a || 'N/A'}</span></p>
+                            <p>MRS: <span className="font-mono">{typeof result.walrasian_equilibrium?.mrs_a === 'number' ? result.walrasian_equilibrium.mrs_a.toFixed(2) : result.walrasian_equilibrium?.mrs_a || 'N/A'}</span></p>
+                        </div>
+                        <div>
+                            <p className="font-medium text-slate-500">Agent B</p>
+                            <p>U: <span className="font-mono">{typeof result.walrasian_equilibrium?.utility_b === 'number' ? result.walrasian_equilibrium.utility_b.toFixed(2) : result.walrasian_equilibrium?.utility_b || 'N/A'}</span></p>
+                            <p>MRS: <span className="font-mono">{typeof result.walrasian_equilibrium?.mrs_b === 'number' ? result.walrasian_equilibrium.mrs_b.toFixed(2) : result.walrasian_equilibrium?.mrs_b || 'N/A'}</span></p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                   

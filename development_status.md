@@ -1,6 +1,8 @@
 # Development Status
 
 ## 2025-11-21
+- **Security**: Updated `next` and `eslint-config-next` to version 14.2.33 to fix critical security vulnerabilities.
+- **Feature**: Added Vercel `SpeedInsights` component to `app/layout.tsx` for performance monitoring.
 - **Backend**: Fixed Pareto efficiency verification for convex utility functions (concave indifference curves).
   - Increased epsilon step size in `verify_pareto_efficiency` to robustly detect second-order improvements, ensuring inefficient interior tangency points (utility minima) are correctly rejected in favor of corner solutions.
 - **Backend**: Robustified Pareto set calculation logic in `api/core/economics.py`.
