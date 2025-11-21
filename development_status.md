@@ -1,6 +1,8 @@
 # Development Status
 
 ## 2025-11-21
+- **Backend**: Fixed Pareto efficiency verification for convex utility functions (concave indifference curves).
+  - Increased epsilon step size in `verify_pareto_efficiency` to robustly detect second-order improvements, ensuring inefficient interior tangency points (utility minima) are correctly rejected in favor of corner solutions.
 - **Backend**: Robustified Pareto set calculation logic in `api/core/economics.py`.
   - Added `is_convex_preference` to better handle non-convex utility functions (e.g., Max Preferences).
   - Implemented a gradient-based `verify_pareto_efficiency` check to robustly identify Pareto-efficient points, including corner solutions.
