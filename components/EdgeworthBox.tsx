@@ -67,7 +67,7 @@ interface EdgeworthBoxProps {
 }
 
 export default function EdgeworthBox({ data, totalResources, endowmentA, visualSettings }: EdgeworthBoxProps) {
-  const { contract_curve, walrasian_equilibrium, z_grid_a, z_grid_b } = data;
+  const { contract_curve, walrasian_equilibrium, z_grid_a, z_grid_b, initial_state } = data;
 
   const traces = useMemo(() => {
     const plotTraces: Data[] = [];
@@ -106,8 +106,8 @@ export default function EdgeworthBox({ data, totalResources, endowmentA, visualS
         const xVec = Array.from({length: N}, (_, i) => i * totalResources.x / (N - 1));
         const yVec = Array.from({length: N}, (_, i) => i * totalResources.y / (N - 1));
         
-        const uA_w = Number(data.initial_state.utility_a);
-        const uB_w = Number(data.initial_state.utility_b);
+          const uA_w = Number(initial_state.utility_a);
+          const uB_w = Number(initial_state.utility_b);
 
         // Exchange Lens (Shaded Area)
         if (settings.show_lens && !isNaN(uA_w) && !isNaN(uB_w)) {
@@ -328,12 +328,11 @@ export default function EdgeworthBox({ data, totalResources, endowmentA, visualS
     }
 
     return plotTraces;
-  }, [data, totalResources, endowmentA]);
+  }, [totalResources, endowmentA, contract_curve, walrasian_equilibrium, z_grid_a, z_grid_b, initial_state, visualSettings]);
 
   const layout: Partial<Layout> = {
     title: { text: 'Edgeworth Box' },
     autosize: true,
-    height: 600,
     xaxis: {
       title: { text: 'Agent A - Good X' },
       range: [0, totalResources.x],

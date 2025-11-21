@@ -11,6 +11,8 @@
 - **UI**: Rebuilt all sidebar parameter controls with synchronized sliders, manual inputs, and +/- nudge buttons to match the Streamlit reference workflow.
 - **Visualization**: Added a Density vs Manual toggle for indifference-curve rendering and plumbed manual curve counts through `EdgeworthBox`.
 - **Test**: `npm run build` (runs lint + typecheck) to verify the updated UI/visualization logic.
+- **UI**: Began mobile website experience with a responsive layout, mobile header/tabs, and adaptive Sidebar styling plus resized EdgeworthBox container.
+- **Test**: `npm run lint`
 
 ## 2025-11-20
 - **Feature**: Added support for custom LaTeX utility functions and expanded utility types (Cobb-Douglas, Perfect Substitutes, Complements, etc.) in the frontend.

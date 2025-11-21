@@ -247,8 +247,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       );
   };
 
-  return (
-    <div className="w-1/4 bg-slate-50 p-6 border-r border-slate-200 flex flex-col gap-6 overflow-y-auto h-screen min-w-[300px]">
+    return (
+      <div className="w-full bg-slate-50 p-4 sm:p-6 border border-slate-200 lg:border-r lg:border-l-0 lg:border-t-0 lg:border-b-0 flex flex-col gap-6 overflow-y-auto max-h-[calc(100vh-11rem)] lg:max-h-none lg:h-screen rounded-3xl lg:rounded-none shadow-sm lg:shadow-none min-w-0 lg:min-w-[22rem]">
       <div className="flex justify-between items-center mb-2">
         <h1 className="text-xl font-bold text-slate-800">Edgeworth Box</h1>
         <div className="flex gap-2">
