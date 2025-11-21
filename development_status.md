@@ -1,6 +1,8 @@
 # Development Status
 
 ## 2025-11-21
+- **Feature**: Updated `EdgeworthBox` component to dynamically calculate plot height based on resource aspect ratio, ensuring a strictly proportional box visualization.
+- **Refactor**: Modified `app/page.tsx` to remove fixed height constraints on the chart container, allowing it to adapt to the dynamic plot size.
 - **Feature**: Overhauled "Analytical Workflow" UI.
   - Introduced a permanently visible "Overview" section (Prices, Allocation, Utility, MRS).
   - Converted detailed derivation steps into a collapsible vertical accordion.

@@ -332,7 +332,7 @@ export default function Home() {
 
               {result && !result.error ? (
                 <div className="space-y-6">
-                  <div className="h-[55vh] min-h-[320px] w-full bg-white dark:bg-slate-900 rounded-3xl lg:rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-3 sm:p-4 lg:min-h-[640px] h-auto">
+                  <div className="w-full bg-white dark:bg-slate-900 rounded-3xl lg:rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-3 sm:p-4 h-auto">
                     <EdgeworthBox
                       data={result}
                       totalResources={totalResources}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Layout, Data } from 'plotly.js';
 
@@ -79,6 +79,37 @@ interface EdgeworthBoxProps {
 
 export default function EdgeworthBox({ data, totalResources, endowmentA, visualSettings, darkMode }: EdgeworthBoxProps) {
   const { contract_curve, walrasian_equilibrium, z_grid_a, z_grid_b, initial_state } = data;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [plotHeight, setPlotHeight] = useState<number>(500);
+
+  const margin = useMemo(() => ({
+      l: 50,
+      r: 50,
+      b: 100,
+      t: 50
+  }), []);
+
+  useEffect(() => {
+      if (!containerRef.current) return;
+
+      const resizeObserver = new ResizeObserver((entries) => {
+          for (const entry of entries) {
+              const containerWidth = entry.contentRect.width;
+              const plotWidth = containerWidth - (margin.l + margin.r);
+              // Maintain aspect ratio based on resources
+              // Height/Width = Y/X => Height = Width * (Y/X)
+              const calculatedPlotHeight = plotWidth * (totalResources.y / totalResources.x);
+              const totalHeight = calculatedPlotHeight + (margin.t + margin.b);
+              setPlotHeight(totalHeight);
+          }
+      });
+
+      resizeObserver.observe(containerRef.current);
+
+      return () => {
+          resizeObserver.disconnect();
+      };
+  }, [totalResources.x, totalResources.y, margin]);
 
   const traces = useMemo(() => {
     const plotTraces: Data[] = [];
@@ -340,7 +371,8 @@ export default function EdgeworthBox({ data, totalResources, endowmentA, visualS
         text: 'Edgeworth Box',
         font: { color: darkMode ? '#e2e8f0' : '#1e293b' }
     },
-    autosize: true,
+    autosize: false,
+    height: plotHeight,
     paper_bgcolor: darkMode ? '#0f172a' : 'white',
     plot_bgcolor: darkMode ? '#0f172a' : 'white',
     xaxis: {
@@ -361,6 +393,8 @@ export default function EdgeworthBox({ data, totalResources, endowmentA, visualS
         font: { color: darkMode ? '#cbd5e1' : '#334155' }
       },
       range: [0, totalResources.y],
+      scaleanchor: 'x',
+      scaleratio: 1,
       showgrid: true,
       gridcolor: darkMode ? '#334155' : '#e2e8f0',
       zeroline: true,
@@ -413,17 +447,12 @@ export default function EdgeworthBox({ data, totalResources, endowmentA, visualS
         y: -0.2,
         font: { color: darkMode ? '#cbd5e1' : '#334155' }
     },
-    margin: {
-        l: 50,
-        r: 50,
-        b: 100,
-        t: 50
-    }
+    margin: margin
   };
 
   return (
-    <div className="w-full h-full bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-gray-200 dark:border-slate-800 p-4 flex flex-col">
-      <div className="flex-grow min-h-[400px]">
+    <div ref={containerRef} className="w-full h-full bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-gray-200 dark:border-slate-800 p-4 flex flex-col">
+      <div className="flex-grow">
         <Plot
             data={traces}
             layout={layout}
