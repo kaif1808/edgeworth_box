@@ -1,6 +1,7 @@
 # Development Status
 
 ## 2025-11-21
+- **Fix**: Resolved "Object of type bool is not JSON serializable" error in API by explicitly casting NumPy boolean to Python boolean in `api/index.py`.
 - **Fix**: Reduced serverless function bundle size by removing unused heavy dependencies (`streamlit`, `plotly`, `pandas`) from `requirements.txt`, resolving Vercel deployment errors.
 
 ## 2025-11-20

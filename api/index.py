@@ -145,7 +145,7 @@ def calculate_handler():
         
         mrs_diff = abs(mrs_a_val - mrs_b_val)
         # If either MRS is infinite, we might be at a corner solution or efficient boundary
-        efficient = mrs_diff < 0.05 or np.isinf(mrs_a_init) or np.isinf(mrs_b_init)
+        efficient = bool(mrs_diff < 0.05 or np.isinf(mrs_a_init) or np.isinf(mrs_b_init))
         
         trade_advice = ""
         if not efficient:
