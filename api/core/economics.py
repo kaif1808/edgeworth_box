@@ -391,7 +391,7 @@ def solve_contract_curve(total_x: float, total_y: float, type_A: str, params_A: 
     convex_A = is_convex_preference(type_A)
     convex_B = is_convex_preference(type_B)
     
-    steps = 100 
+    steps = 300 
     if Z_B_max > Z_B_min and (convex_A and convex_B):
         levels_B = np.linspace(Z_B_min, Z_B_max, steps)
         last_x = [total_x / 2, total_y / 2] 
@@ -429,7 +429,7 @@ def solve_contract_curve(total_x: float, total_y: float, type_A: str, params_A: 
     # 2. Boundary Check (Crucial for Non-Convex / Concave Preferences, and Corners)
     # Always check boundaries as fail-safe for corner solutions
     if True:
-        num_edge = 100
+        num_edge = 200
         edge1 = [(x, 0.0) for x in np.linspace(0, total_x, num_edge)]
         edge2 = [(x, total_y) for x in np.linspace(0, total_x, num_edge)]
         edge3 = [(0.0, y) for y in np.linspace(0, total_y, num_edge)]
@@ -439,13 +439,44 @@ def solve_contract_curve(total_x: float, total_y: float, type_A: str, params_A: 
         # Also add exact corners
         pareto_candidates.extend([(0.0, 0.0), (total_x, total_y), (0.0, total_y), (total_x, 0.0)])
 
+    # 2.5 Analytical Expansion Paths for Min Functions (Hard Corners)
+    # Numerical gradients fail at the kink of Min functions.
+    # We explicitly add the expansion path (where alpha*x = beta*y) to candidates.
+    if type_A == "Perfect Complements (Min)":
+        alpha_a = params_A.get('alpha', 0.5)
+        beta_a = params_A.get('beta', 0.5)
+        if beta_a > 1e-9:
+            ratio_a = alpha_a / beta_a
+            # Generate points along y = ratio * x
+            x_pts = np.linspace(0, total_x, 200)
+            y_pts = ratio_a * x_pts
+            for i in range(len(x_pts)):
+                if 0 <= y_pts[i] <= total_y:
+                    pareto_candidates.append((float(x_pts[i]), float(y_pts[i])))
+
+    if type_B == "Perfect Complements (Min)":
+        alpha_b = params_B.get('alpha', 0.5)
+        beta_b = params_B.get('beta', 0.5)
+        if beta_b > 1e-9:
+            ratio_b = alpha_b / beta_b
+            # B's expansion path: alpha_b * x_b = beta_b * y_b
+            # x_b = total_x - x_a, y_b = total_y - y_a
+            # alpha_b * (total_x - x_a) = beta_b * (total_y - y_a)
+            # (alpha_b/beta_b) * (total_x - x_a) = total_y - y_a
+            # y_a = total_y - ratio_b * (total_x - x_a)
+            x_pts = np.linspace(0, total_x, 200)
+            y_pts = total_y - ratio_b * (total_x - x_pts)
+            for i in range(len(x_pts)):
+                if 0 <= y_pts[i] <= total_y:
+                    pareto_candidates.append((float(x_pts[i]), float(y_pts[i])))
+
     # 3. Verification and Filtering
     valid_pareto = []
     seen_points = []
     
     # Use a simple grid hash for deduplication
     def get_grid_key(p):
-        return (int(p[0] * 100), int(p[1] * 100))
+        return (int(p[0] * 500), int(p[1] * 500))
     
     seen_keys = set()
 

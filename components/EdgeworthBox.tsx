@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Layout, Data } from 'plotly.js';
+import 'katex/dist/katex.min.css';
+import { InlineMath, BlockMath } from 'react-katex';
 
 // Dynamically import Plotly to avoid SSR issues
 const Plot = dynamic(() => import('react-plotly.js'), { ssr: false });
@@ -44,6 +46,12 @@ interface SimulationData {
     mrs_difference: number | string;
     trade_advice: string;
   };
+  workings?: {
+    [key: string]: {
+      title: string;
+      content: string[];
+    };
+  };
 }
 
 export interface VisualSettings {
@@ -72,7 +80,38 @@ interface EdgeworthBoxProps {
 }
 
 export default function EdgeworthBox({ data, totalResources, endowmentA, visualSettings, darkMode }: EdgeworthBoxProps) {
-  const { contract_curve, walrasian_equilibrium, z_grid_a, z_grid_b, initial_state } = data;
+  const { contract_curve, walrasian_equilibrium, z_grid_a, z_grid_b, initial_state, workings } = data;
+  const [activeTab, setActiveTab] = useState<string>('primitives');
+
+  // Update active tab when workings change, if needed, or keep default
+  // Simple effect to ensure we have a valid tab selected if data loads
+  React.useEffect(() => {
+      if (workings && !workings[activeTab]) {
+          const firstKey = Object.keys(workings)[0];
+          if (firstKey) setActiveTab(firstKey);
+      }
+  }, [workings, activeTab]);
+
+  const renderLatexLine = (line: string, index: number) => {
+    const parts = line.split(/\$(\$)?/); // Split by $$ or $
+    return (
+      <div key={index} className="text-sm text-slate-600 dark:text-slate-300 mb-2 leading-relaxed">
+        {parts.map((part, i) => {
+          if (i % 4 === 2) { // Block math: $$...$$
+             // Remove empty strings if split caused them
+             if (!part) return null;
+             return <div key={i} className="my-2"><BlockMath>{part}</BlockMath></div>;
+          } else if (i % 2 === 1) { // Inline math: $...$
+             if (!part) return null;
+             return <span key={i}><InlineMath>{part}</InlineMath></span>;
+          } else {
+             if (!part) return null;
+             return <span key={i}>{part}</span>;
+          }
+        })}
+      </div>
+    );
+  };
 
   const traces = useMemo(() => {
     const plotTraces: Data[] = [];
@@ -425,14 +464,46 @@ export default function EdgeworthBox({ data, totalResources, endowmentA, visualS
   };
 
   return (
-    <div className="w-full h-full bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-gray-200 dark:border-slate-800 p-4">
-      <Plot
-        data={traces}
-        layout={layout}
-        useResizeHandler={true}
-        style={{ width: '100%', height: '100%' }}
-        config={{ responsive: true }}
-      />
+    <div className="w-full h-full bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-gray-200 dark:border-slate-800 p-4 flex flex-col">
+      <div className="flex-grow min-h-[400px]">
+        <Plot
+            data={traces}
+            layout={layout}
+            useResizeHandler={true}
+            style={{ width: '100%', height: '100%' }}
+            config={{ responsive: true }}
+        />
+      </div>
+      
+      {workings && Object.keys(workings).length > 0 && (
+        <div className="mt-6 pt-4 border-t border-gray-200 dark:border-slate-700">
+          <h3 className="text-md font-semibold text-slate-800 dark:text-slate-200 mb-3">Analytical Workflow</h3>
+          <div className="flex space-x-1 border-b border-gray-200 dark:border-slate-700 overflow-x-auto pb-1">
+            {Object.entries(workings).map(([key, { title }]) => (
+              <button
+                key={key}
+                onClick={() => setActiveTab(key)}
+                className={`px-4 py-2 text-xs font-medium transition-colors duration-150 focus:outline-none whitespace-nowrap rounded-t-md
+                  ${activeTab === key
+                    ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-500'
+                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                  }`}
+              >
+                {title.split('. ')[0]} {/* Show number/short title in tab, or full title? Let's just show full title but maybe truncated if needed. The user workflow titles are short enough. */}
+                {/* Actually title includes "1. Primitives...", let's just use the key or a mapping if we want shorter. But title is fine. */}
+              </button>
+            ))}
+          </div>
+          <div className="mt-4 max-h-64 overflow-y-auto p-4 bg-slate-50 dark:bg-slate-800/50 rounded-b-md rounded-tr-md border border-slate-100 dark:border-slate-700">
+            {Object.entries(workings).map(([key, { title, content }]) => (
+              <div key={key} className={activeTab === key ? 'block' : 'hidden'}>
+                <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3">{title}</h4>
+                {content.map(renderLatexLine)}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

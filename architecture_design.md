@@ -1,9 +1,9 @@
 # Edgeworth Box Architecture Design
 
 ## 1. Overview
-This document outlines the architecture for the Edgeworth Box application pivot to a Vercel-hosted solution.
-- **Frontend:** Next.js (React)
-- **Backend:** Python Serverless Functions (Vercel)
+This document outlines the architecture for the Edgeworth Box application hosted on Vercel.
+- **Frontend:** Next.js (React) with Vercel Speed Insights
+- **Backend:** Python Flask Serverless Functions (Vercel)
 - **Deployment:** Vercel (Monorepo structure)
 
 ## 2. API Specification
@@ -11,11 +11,12 @@ This document outlines the architecture for the Edgeworth Box application pivot 
 ### Endpoint: Calculate Equilibrium & Contract Curve
 - **URL:** `/api/calculate`
 - **Method:** `POST`
-- **Description:** Performs all economic calculations (Utility, MRS, Walrasian Equilibrium, Contract Curve) based on the provided simulation state.
+- **Description:** Performs all economic calculations (Utility, MRS, Walrasian Equilibrium, Contract Curve, Utility Grids) based on the provided simulation state.
 
 ### Request Schema (JSON)
 ```json
 {
+  "include_grid": true,
   "dimensions": {
     "total_x": 10.0,
     "total_y": 10.0
@@ -47,7 +48,11 @@ This document outlines the architecture for the Edgeworth Box application pivot 
     "price_ratio_px_py": 1.0,
     "allocation_a": { "x": 5.0, "y": 5.0 },
     "allocation_b": { "x": 5.0, "y": 5.0 },
-    "trade_a": { "net_x": 0.0, "net_y": 0.0 }
+    "trade_a": { "net_x": 0.0, "net_y": 0.0 },
+    "utility_a": 5.0,
+    "utility_b": 5.0,
+    "mrs_a": 1.0,
+    "mrs_b": 1.0
   },
   "contract_curve": {
     "pareto_points": [
@@ -58,41 +63,57 @@ This document outlines the architecture for the Edgeworth Box application pivot 
       { "x": 4.0, "y": 4.0 },
       { "x": 6.0, "y": 6.0 }
     ]
+  },
+  "z_grid_a": [[0.0, 0.1], [0.1, 0.2]], // 2D array for heatmap/contours
+  "z_grid_b": [[0.0, 0.1], [0.1, 0.2]], // 2D array for heatmap/contours
+  "analysis": {
+    "pareto_efficient": false,
+    "mrs_difference": 0.5,
+    "trade_advice": "Agent A should buy X and sell Y."
   }
 }
 ```
 
 ## 3. Project Structure
 
-The project will be restructured to support Next.js and Vercel Serverless Functions. The existing `core/` logic will be moved to be accessible by the API functions.
+The project is structured to support Next.js App Router and Vercel Serverless Functions.
 
 ```
 edgeworth_box/
 ├── api/                        # Python Serverless Functions
-│   ├── index.py                # Entry point (handler for /api/calculate)
-│   ├── core/                   # Moved from root core/
+│   ├── index.py                # Entry point (Flask app handler for /api/calculate)
+│   ├── core/                   # Core logic moved from root
 │   │   ├── __init__.py
-│   │   └── economics.py        # Existing logic (NumPy/SciPy)
-│   └── requirements.txt        # Python dependencies (numpy, scipy)
+│   │   └── economics.py        # NumPy/SciPy economic logic
+│   └── requirements.txt        # Python dependencies
 ├── app/                        # Next.js App Router
-│   ├── page.tsx                # Main UI
-│   ├── layout.tsx
-│   └── components/             # React Components
-│       ├── EdgeworthBox.tsx    # Plotly Visualization
-│       └── Controls.tsx        # Input forms
+│   ├── page.tsx                # Main Page (State & Layout)
+│   ├── layout.tsx              # Root Layout (w/ Analytics)
+│   └── globals.css             # Global Styles
+├── components/                 # React Components
+│   ├── EdgeworthBox.tsx        # Plotly Visualization
+│   └── Sidebar.tsx             # Input controls
 ├── public/                     # Static assets
 ├── package.json                # Frontend dependencies
 ├── next.config.js              # Next.js configuration
 └── tsconfig.json
 ```
 
-### Key Changes
-1.  **`core/` Migration:** The `core/` directory containing `economics.py` will be moved inside `api/` so it can be imported by the serverless function `index.py`.
-2.  **`api/index.py`:** This file will handle the HTTP request, parse the JSON body, call functions from `api/core/economics.py`, and return the JSON response.
-3.  **Frontend State:** The state management logic currently in `ui/state.py` will be reimplemented in React (using `useState` or `Zustand`) within `app/`.
+### Key Components
+1.  **`api/index.py`:** A Flask application serving as the serverless function entry point. It handles CORS, request parsing, calls `core.economics`, and formats the JSON response.
+2.  **`components/EdgeworthBox.tsx`:** The primary visualization component using `react-plotly.js`. It handles rendering the contract curve, indifference curves, endowments, and allocations.
+3.  **`components/Sidebar.tsx`:** Contains all user input controls (sliders, manual inputs) for configuring agent preferences and endowments.
 
-## 4. Implementation Steps
-1.  **Move Core Logic:** Move `core/` to `api/core/`.
-2.  **Create API Handler:** Implement `api/index.py` using standard Python HTTP handling (or a lightweight framework like Flask/FastAPI if preferred, though raw Vercel functions work well for simple cases).
-3.  **Setup Next.js:** Initialize the Next.js app in the root (or `app/` if using a src directory structure).
-4.  **Frontend Integration:** Build the React components to consume `/api/calculate`.
+## 4. Implementation Status
+
+### Completed
+- [x] **Core Logic Migration:** `economics.py` moved to `api/core/` and adapted for stateless usage.
+- [x] **API Implementation:** Flask-based handler in `api/index.py` serving `/api/calculate`.
+- [x] **Next.js Setup:** App Router initialized with `page.tsx` and `layout.tsx`.
+- [x] **Frontend Integration:** React components (`EdgeworthBox`, `Sidebar`) fully integrated with the API.
+- [x] **State Management:** Reimplemented in React using `useState` in `page.tsx`.
+- [x] **Visualization:** Plotly graphs for Contract Curve, Core, and Indifference Curves (contours).
+
+### Future Improvements
+- **Performance:** Optimize grid calculations for higher resolution heatmaps.
+- **Testing:** Expand `tests/` to cover API endpoints integration.

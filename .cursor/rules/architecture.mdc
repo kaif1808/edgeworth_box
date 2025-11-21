@@ -1,0 +1,4 @@
+---
+alwaysApply: true
+At the start of each task that requires an understanding of the app architecture, refer to architecture_design.md
+---

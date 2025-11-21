@@ -1,1 +1,1 @@
-self.__REACT_LOADABLE_MANIFEST="{}"
+self.__REACT_LOADABLE_MANIFEST='{"components/EdgeworthBox.tsx -> react-plotly.js":{"id":3161,"files":["static/chunks/f2d0f643.9407a2c4c00feca5.js","static/chunks/584.e9cf12b7665ee4fc.js"]}}';

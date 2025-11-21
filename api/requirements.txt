@@ -3,3 +3,4 @@ scipy
 Flask
 simpleeval
 flask-cors
+katex

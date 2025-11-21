@@ -1,6 +1,10 @@
 # Development Status
 
 ## 2025-11-21
+- **Feature**: Added "Analytical Workflow" tabs to `EdgeworthBox` component.
+  - Implemented a step-by-step breakdown of the equilibrium calculation (Primitives, Income, Demands, Excess Demand, Equilibrium, Optimality, Feasibility).
+  - Updated backend (`api/core/economics.py`) to generate LaTeX-formatted explanations dynamically based on the simulation state.
+  - Integrated `react-katex` for rendering mathematical formulas in the UI.
 - **Security**: Updated `next` and `eslint-config-next` to version 14.2.33 to fix critical security vulnerabilities.
 - **Feature**: Added Vercel `SpeedInsights` component to `app/layout.tsx` for performance monitoring.
 - **Backend**: Fixed Pareto efficiency verification for convex utility functions (concave indifference curves).

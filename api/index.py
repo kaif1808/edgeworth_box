@@ -9,10 +9,10 @@ import numpy as np
 sys.path.append(os.path.dirname(__file__))
 
 try:
-    from core.economics import solve_walrasian_equilibrium, solve_contract_curve, utility_func, calculate_mrs
+    from core.economics import solve_walrasian_equilibrium, solve_contract_curve, utility_func, calculate_mrs, generate_workings
 except ImportError:
     # Fallback for Vercel environment where structure might differ
-    from .core.economics import solve_walrasian_equilibrium, solve_contract_curve, utility_func, calculate_mrs
+    from .core.economics import solve_walrasian_equilibrium, solve_contract_curve, utility_func, calculate_mrs, generate_workings
 
 app = Flask(__name__)
 CORS(app) # Enable CORS for all routes
@@ -96,6 +96,17 @@ def calculate_handler():
             "mrs_a": sanitize_float(mrs_a_eq),
             "mrs_b": sanitize_float(mrs_b_eq)
         }
+
+        # 2.5 Workings
+        workings = generate_workings(
+            total_x, total_y,
+            type_a, params_a,
+            type_b, params_b,
+            endow_a, endow_b,
+            px, alloc_a,
+            u_a_eq, u_b_eq,
+            mrs_a_eq, mrs_b_eq
+        )
         
         # 3. Contract Curve
         # Determine range for B's utility
@@ -124,7 +135,13 @@ def calculate_handler():
         
         if include_grid:
             try:
-                N = 50 # Grid density
+                # Determine grid density based on utility type
+                # Higher density for Min functions to show sharp corners
+                is_min_a = type_a == "Perfect Complements (Min)"
+                is_min_b = type_b == "Perfect Complements (Min)"
+                
+                N = 150 if (is_min_a or is_min_b) else 100
+                
                 x_vec = np.linspace(0, total_x, N)
                 y_vec = np.linspace(0, total_y, N)
                 X, Y = np.meshgrid(x_vec, y_vec)
@@ -181,7 +198,8 @@ def calculate_handler():
             "contract_curve": contract_curve,
             "z_grid_a": z_grid_a,
             "z_grid_b": z_grid_b,
-            "analysis": analysis
+            "analysis": analysis,
+            "workings": workings
         }
         
         return jsonify(response)
