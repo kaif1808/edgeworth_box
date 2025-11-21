@@ -56,14 +56,39 @@ export default function Home() {
       });
       
       if (!response.ok) {
-        throw new Error(`Server error: ${response.status} ${response.statusText}`);
+        let errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          if (errorData && errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch (e) {
+          // Fallback to status text if JSON parsing fails
+        }
+        throw new Error(errorMessage);
       }
       
       const data = await response.json();
+
+      // Validate response structure
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid response format');
+      }
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      if (!data.contract_curve || !data.contract_curve.pareto_points || !data.walrasian_equilibrium) {
+        throw new Error('Response missing required simulation data');
+      }
+
       setResult(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error calculating:', error);
-      setResult({ error: 'Failed to calculate. Please check your inputs and try again.' });
+      setResult({
+        error: error instanceof Error ? error.message : 'Failed to calculate. Please check your inputs and try again.'
+      });
     } finally {
       setLoading(false);
     }
@@ -98,7 +123,7 @@ export default function Home() {
               </section>
               <section>
                 <h3 className="font-bold text-lg text-blue-600">Custom Formulas</h3>
-                <p>You can enter custom utility functions using LaTeX-like syntax (e.g., <code>x^2 * y</code>, <code>\sqrt{x} + \ln{y}</code>). Supported functions: log, ln, exp, sqrt, min, max.</p>
+                <p>You can enter custom utility functions using LaTeX-like syntax (e.g., <code>x^2 * y</code>, <code>{`\\sqrt{x} + \\ln{y}`}</code>). Supported functions: log, ln, exp, sqrt, min, max.</p>
               </section>
             </div>
             <button onClick={() => setShowHelp(false)} className="mt-6 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full">Close</button>
