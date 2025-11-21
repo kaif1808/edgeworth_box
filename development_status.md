@@ -1,5 +1,8 @@
 # Development Status
 
+## 2025-11-21
+- **Fix**: Reduced serverless function bundle size by removing unused heavy dependencies (`streamlit`, `plotly`, `pandas`) from `requirements.txt`, resolving Vercel deployment errors.
+
 ## 2025-11-20
 - **Feature**: Added support for custom LaTeX utility functions and expanded utility types (Cobb-Douglas, Perfect Substitutes, Complements, etc.) in the frontend.
 - **Fix**: Resolved Vercel deployment issues (404/405 errors) by adding CORS support and defensive routing in `api/index.py`.
