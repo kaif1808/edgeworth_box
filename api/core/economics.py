@@ -515,29 +515,101 @@ def solve_contract_curve(total_x: float, total_y: float, type_A: str, params_A: 
 
     return pareto_x, pareto_y, core_x, core_y
 
+def get_utility_string(u_type: str, params: Dict[str, Any]) -> str:
+    """Returns a LaTeX string representing the utility function."""
+    alpha = params.get('alpha', 0.5)
+    beta = params.get('beta', 0.5)
+    a = params.get('a', 0.0)
+    b = params.get('b', 0.0)
+    
+    if u_type == "Cobb-Douglas" or u_type == "Non-standard Cobb-Douglas":
+        return f"x^{{{alpha}}} y^{{{beta}}}"
+    elif u_type == "Perfect Substitutes":
+        return f"{alpha}x + {beta}y"
+    elif u_type == "Perfect Complements (Min)": 
+        return f"\\min({alpha}x, {beta}y)"
+    elif u_type == "Max Preferences (Convex)": 
+        return f"\\max({alpha}x, {beta}y)"
+    elif u_type == "Quasi-Linear (Shifted Product)": 
+        return f"(x + {a})(y + {b})"
+    elif u_type == "Satiation (Bliss Point)": 
+        return f"-1((x - {a})^2 + (y - {b})^2)"
+    elif u_type == "Mixed Cobb-Douglas": 
+        return f"x y^{{{alpha}}}"
+    elif u_type == "Custom (Enter Formula)":
+        return params.get('formula', 'x*y')
+    return "u(x,y)"
+
 def generate_workings(total_x, total_y, type_a, params_a, type_b, params_b, endow_a, endow_b, px, alloc_a, u_a_eq, u_b_eq, mrs_a_eq, mrs_b_eq):
     workings = {}
 
     # 1. Primitives
+    u_str_a = get_utility_string(type_a, params_a)
+    u_str_b = get_utility_string(type_b, params_b)
+    
     workings['1_primitives'] = {
         "title": "1. Model Primitives",
         "content": [
             "**Agents & Endowments**",
-            f"Agent A: Utility ${type_a}$, Endowment $\\omega^A = ({endow_a[0]:.2f}, {endow_a[1]:.2f})$",
-            f"Agent B: Utility ${type_b}$, Endowment $\\omega^B = ({endow_b[0]:.2f}, {endow_b[1]:.2f})$",
+            f"Agent A: Utility {type_a}",
+            f"$u^A(x^A, y^A) = {u_str_a}$",
+            f"Endowment $\\omega^A = ({endow_a[0]:.2f}, {endow_a[1]:.2f})$",
+            "",
+            f"Agent B: Utility {type_b}",
+            f"$u^B(x^B, y^B) = {u_str_b}$",
+            f"Endowment $\\omega^B = ({endow_b[0]:.2f}, {endow_b[1]:.2f})$",
+            "",
             "**Total Resources**",
             f"$\\bar{{X}} = {total_x}, \\bar{{Y}} = {total_y}$"
         ]
     }
 
-    # 2. Efficiency Condition (Pareto Set)
+    # 2. Demand Functions (Simplified)
+    # We won't do full symbolic derivation here, but we can show the form for standard types
+    workings['2_demand'] = {
+        "title": "2. Demand Functions",
+        "content": [
+            "Given prices $p_x, p_y=1$ and income $I$, agents maximize utility subject to budget constraints.",
+            f"Income $I^A = p_x \\omega_x^A + \\omega_y^A$",
+            f"Income $I^B = p_x \\omega_x^B + \\omega_y^B$",
+            "Demand functions $x(p_x, I)$ derived from FOCs:",
+            "For Cobb-Douglas: $x^* = \\frac{\\alpha}{\\alpha+\\beta} \\frac{I}{p_x}$",
+            "For Perfect Substitutes: Corner solution depending on $p_x$ vs $MRS$",
+            "For Perfect Complements: Expansion path $\\alpha x = \\beta y$ substituted into budget",
+        ]
+    }
+
+    # 3. Market Clearing
+    # Calculate demands at equilibrium
+    I_A = px * endow_a[0] + 1.0 * endow_a[1]
+    I_B = px * endow_b[0] + 1.0 * endow_b[1]
+    xA_dem, yA_dem = get_demand(type_a, params_a, px, 1.0, I_A, total_x, total_y)
+    xB_dem, yB_dem = get_demand(type_b, params_b, px, 1.0, I_B, total_x, total_y)
+    
+    excess_x = (xA_dem + xB_dem) - total_x
+
+    workings['3_market_clearing'] = {
+        "title": "3. Market Clearing Condition",
+        "content": [
+            "Equilibrium price $p_x^*$ is found where excess demand for X is zero.",
+            f"$Z_x(p_x) = x^A(p_x) + x^B(p_x) - \\bar{{X}} = 0$",
+            f"At $p_x = {px:.4f}$:",
+            f"Demand A: $x^A = {xA_dem:.2f}$",
+            f"Demand B: $x^B = {xB_dem:.2f}$",
+            f"Total Demand: ${xA_dem + xB_dem:.2f}$",
+            f"Total Supply: ${total_x}$",
+            f"Excess Demand: ${excess_x:.4f} \\approx 0$"
+        ]
+    }
+
+    # 4. Efficiency Condition (Pareto Set)
     # Helper to format MRS safely
     def format_mrs(val):
         if np.isinf(val): return r"\infty"
         return f"{val:.4f}"
 
-    workings['2_efficiency'] = {
-        "title": "2. Efficiency Condition (Pareto Set)",
+    workings['4_efficiency'] = {
+        "title": "4. Efficiency Condition (Pareto Set)",
         "content": [
             "An allocation is Pareto Efficient if $MRS^A = MRS^B$ (for interior solutions).",
             f"At the equilibrium allocation:",
@@ -547,12 +619,12 @@ def generate_workings(total_x, total_y, type_a, params_a, type_b, params_b, endo
         ]
     }
 
-    # 3. The Core
+    # 5. The Core
     u_a_w = utility_func(endow_a[0], endow_a[1], type_a, params_a)
     u_b_w = utility_func(endow_b[0], endow_b[1], type_b, params_b)
 
-    workings['3_core'] = {
-        "title": "3. The Core",
+    workings['5_core'] = {
+        "title": "5. The Core",
         "content": [
             "The Core is the subset of the Pareto Set that satisfies Individual Rationality (IR).",
             "**Utility at Endowment (Reservation Utility):**",
@@ -563,14 +635,10 @@ def generate_workings(total_x, total_y, type_a, params_a, type_b, params_b, endo
         ]
     }
 
-    # 4. Walrasian Equilibrium
-    workings['4_equilibrium'] = {
-        "title": "4. Walrasian Equilibrium Calculation",
+    # 6. Final Allocation Summary
+    workings['6_summary'] = {
+        "title": "6. Final Allocation Summary",
         "content": [
-            "We solve for prices $p = (p_x, 1)$ such that excess demand is zero.",
-            "**Budget Constraints:**",
-            f"$p_x x^A + y^A = p_x ({endow_a[0]}) + {endow_a[1]}$",
-            f"$p_x x^B + y^B = p_x ({endow_b[0]}) + {endow_b[1]}$",
             "**Equilibrium Prices:**",
             f"$p_x^* = {px:.4f}, p_y^* = 1$",
             "**Final Allocation:**",

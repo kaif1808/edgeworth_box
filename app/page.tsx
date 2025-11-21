@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import EdgeworthBox, { VisualSettings } from '@/components/EdgeworthBox';
+import AnalyticalWorkflow from '@/components/AnalyticalWorkflow';
 import { Sidebar, AgentParams } from '@/components/Sidebar';
 
 export default function Home() {
@@ -341,6 +342,10 @@ export default function Home() {
                     />
                   </div>
                   
+                  {result.workings && (
+                    <AnalyticalWorkflow workings={result.workings} darkMode={darkMode} />
+                  )}
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
                       <h3 className="font-semibold text-slate-700 dark:text-slate-300 mb-2">Equilibrium Prices</h3>
