@@ -165,7 +165,7 @@ def verify_pareto_efficiency(x: float, y: float, total_x: float, total_y: float,
             dirs.append(bisect / np.linalg.norm(bisect))
             
     # Add standard 8 directions for robustness (especially at corners/non-smooth)
-    eps = 1e-4
+    eps = 1e-3
     # We scale directions by eps
     standard_dirs = [
         (1,0), (-1,0), (0,1), (0,-1),
