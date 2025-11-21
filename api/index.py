@@ -78,12 +78,23 @@ def calculate_handler():
         trade_a_net_x = alloc_a[0] - endow_a[0]
         trade_a_net_y = alloc_a[1] - endow_a[1]
         
+        # Calculate Utility and MRS at Equilibrium
+        u_a_eq = utility_func(alloc_a[0], alloc_a[1], type_a, params_a)
+        u_b_eq = utility_func(alloc_b[0], alloc_b[1], type_b, params_b)
+        
+        mrs_a_eq = calculate_mrs(alloc_a[0], alloc_a[1], type_a, params_a)
+        mrs_b_eq = calculate_mrs(alloc_b[0], alloc_b[1], type_b, params_b)
+        
         walrasian_equilibrium = {
             "exists": True,
             "price_ratio_px_py": sanitize_float(px),
             "allocation_a": { "x": sanitize_float(alloc_a[0]), "y": sanitize_float(alloc_a[1]) },
             "allocation_b": { "x": sanitize_float(alloc_b[0]), "y": sanitize_float(alloc_b[1]) },
-            "trade_a": { "net_x": sanitize_float(trade_a_net_x), "net_y": sanitize_float(trade_a_net_y) }
+            "trade_a": { "net_x": sanitize_float(trade_a_net_x), "net_y": sanitize_float(trade_a_net_y) },
+            "utility_a": sanitize_float(u_a_eq),
+            "utility_b": sanitize_float(u_b_eq),
+            "mrs_a": sanitize_float(mrs_a_eq),
+            "mrs_b": sanitize_float(mrs_b_eq)
         }
         
         # 3. Contract Curve

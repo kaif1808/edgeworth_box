@@ -28,6 +28,10 @@ interface SimulationData {
       net_x: number | string;
       net_y: number | string;
     };
+    utility_a?: number | string;
+    utility_b?: number | string;
+    mrs_a?: number | string;
+    mrs_b?: number | string;
   };
   contract_curve: {
     pareto_points: Point[];
