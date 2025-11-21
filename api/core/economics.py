@@ -343,6 +343,30 @@ def solve_contract_curve(total_x: float, total_y: float, type_A: str, params_A: 
                     core_x.append(best_p[0])
                     core_y.append(best_p[1])
 
+    # Add corners if they are Pareto efficient (usually yes for monotonic preferences)
+    # Corner 1: A at (0,0), B at (TotalX, TotalY)
+    p1 = (0.0, 0.0)
+    u1_A = utility_func(p1[0], p1[1], type_A, params_A)
+    u1_B = utility_func(total_x - p1[0], total_y - p1[1], type_B, params_B)
+    
+    # Corner 2: A at (TotalX, TotalY), B at (0,0)
+    p2 = (total_x, total_y)
+    u2_A = utility_func(p2[0], p2[1], type_A, params_A)
+    u2_B = utility_func(total_x - p2[0], total_y - p2[1], type_B, params_B)
+
+    # Add corners to Pareto if unique
+    for px, py, ua, ub in [(p1[0], p1[1], u1_A, u1_B), (p2[0], p2[1], u2_A, u2_B)]:
+        # Check if close to any existing point
+        is_present = any(abs(px - x) < 1e-3 and abs(py - y) < 1e-3 for x, y in zip(pareto_x, pareto_y))
+        if not is_present:
+             pareto_x.append(px)
+             pareto_y.append(py)
+             
+             # Check Core Condition
+             if ua >= uA_w - 1e-3 and ub >= uB_w - 1e-3:
+                 core_x.append(px)
+                 core_y.append(py)
+
     # Sort points to prevent zigzag lines
     if pareto_x:
         p_points = sorted(zip(pareto_x, pareto_y), key=lambda k: k[0])

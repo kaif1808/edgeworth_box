@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import EdgeworthBox, { VisualSettings } from '@/components/EdgeworthBox';
 import { Sidebar, AgentParams } from '@/components/Sidebar';
 
 export default function Home() {
-  const [totalResources, setTotalResources] = useState({ x: 100, y: 100 });
-  const [endowmentA, setEndowmentA] = useState({ x: 50, y: 50 });
+  const [totalResources, setTotalResources] = useState({ x: 10, y: 10 });
+  const [endowmentA, setEndowmentA] = useState({ x: 5, y: 5 });
   
   // Initialize agents with default Cobb-Douglas
   const [agentA, setAgentA] = useState<AgentParams>({
@@ -39,6 +39,8 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [theme, setTheme] = useState<'professional' | 'textbook'>('professional');
   const [showHelp, setShowHelp] = useState(false);
+  
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
   const toggleTheme = () => {
     const newTheme = theme === 'professional' ? 'textbook' : 'professional';
@@ -46,7 +48,17 @@ export default function Home() {
     document.documentElement.setAttribute('data-theme', newTheme);
   };
 
-  const handleCalculate = async () => {
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const handleCalculate = useCallback(async () => {
+    // Cancel previous request if it exists
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setLoading(true);
     try {
       const response = await fetch('/api/calculate', {
@@ -71,6 +83,7 @@ export default function Home() {
             // Endowment B is inferred in backend
           }
         }),
+        signal: controller.signal
       });
       
       if (!response.ok) {
@@ -103,14 +116,38 @@ export default function Home() {
 
       setResult(data);
     } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log('Fetch aborted');
+        return;
+      }
       console.error('Error calculating:', error);
       setResult({
         error: error instanceof Error ? error.message : 'Failed to calculate. Please check your inputs and try again.'
       });
     } finally {
-      setLoading(false);
+      // Only turn off loading if this was the request that finished (or if we aren't aborted, though finally runs on abort too)
+      // If we aborted, we don't want to flash loading off if the next request is already pending?
+      // Actually, if we abort, we return early in catch block? No, finally runs.
+      // Check signal?
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
-  };
+  }, [totalResources, endowmentA, agentA, agentB]);
+
+  // Live Update Effect
+  useEffect(() => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    
+    debounceTimer.current = setTimeout(() => {
+        handleCalculate();
+    }, 800); // 800ms debounce
+
+    return () => {
+        if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
+  }, [totalResources, endowmentA, agentA, agentB, handleCalculate]);
+
 
   return (
     <main className="flex min-h-screen flex-row text-slate-900">

@@ -1,6 +1,11 @@
 # Development Status
 
 ## 2025-11-21
+- **Feature**: Integrated live updates for Edgeworth Box simulation with debounced API calls.
+- **Feature**: Added slider controls for Total Resources and Endowments in the Sidebar.
+- **Visualization**: Implemented "Exchange Lens" (mutually beneficial trade area) shading.
+- **Visualization**: Added specific indifference curves passing through the initial endowment.
+- **Backend**: Improved contract curve solver to explicitly check and include efficient corner solutions (origins).
 - **Fix**: Resolved "Object of type bool is not JSON serializable" error in API by explicitly casting NumPy boolean to Python boolean in `api/index.py`.
 - **Fix**: Reduced serverless function bundle size by removing unused heavy dependencies (`streamlit`, `plotly`, `pandas`) from `requirements.txt`, resolving Vercel deployment errors.
 

@@ -94,14 +94,41 @@ export default function EdgeworthBox({ data, totalResources, endowmentA, visualS
         const xVec = Array.from({length: N}, (_, i) => i * totalResources.x / (N - 1));
         const yVec = Array.from({length: N}, (_, i) => i * totalResources.y / (N - 1));
         
-        // Exchange Lens (Intersection of Upper Contour Sets)
-        // We need to manually compute the lens region or use a contour.
-        // Python did: lens_mask = (Z_A >= uA_w) & (Z_B >= uB_w)
-        // Plotly JS Contour doesn't support boolean masks directly easily without custom colorscale hack.
-        // Alternatively, we render the filled contours for A and B? No, that's messy.
-        // Let's skip the lens filled contour for a moment or implement it as a heatmap with transparency?
-        // Or just standard contours.
-        
+        const uA_w = Number(data.initial_state.utility_a);
+        const uB_w = Number(data.initial_state.utility_b);
+
+        // Exchange Lens (Shaded Area)
+        if (settings.show_lens && !isNaN(uA_w) && !isNaN(uB_w)) {
+            // Create a binary grid for the lens
+            const z_lens = z_grid_a.map((row, i) => 
+                row.map((valA, j) => {
+                    const valB = z_grid_b[i][j];
+                    // Check Pareto improvement condition
+                    return (valA >= uA_w && valB >= uB_w) ? 1 : 0; // 1 inside lens, 0 outside
+                })
+            );
+
+            // Use a filled contour for the lens to ensure smooth edges
+            plotTraces.push({
+                z: z_lens,
+                x: xVec,
+                y: yVec,
+                type: 'contour',
+                showscale: false,
+                autocontour: false,
+                contours: {
+                    start: 0.5,
+                    end: 1.5,
+                    size: 1,
+                    coloring: 'fill',
+                    showlines: false
+                },
+                colorscale: [[0, 'rgba(0,0,0,0)'], [1, 'rgba(255, 215, 0, 0.3)']], // Transparent to Gold
+                hoverinfo: 'skip',
+                name: 'Mutually Beneficial Trade Area'
+            });
+        }
+
         // Indifference Curves A
         if (settings.show_curves_A) {
             plotTraces.push({
@@ -124,13 +151,36 @@ export default function EdgeworthBox({ data, totalResources, endowmentA, visualS
                 hoverinfo: 'skip',
                 name: 'UA Map'
             });
+
+            // Specific IC for Endowment A
+            if (!isNaN(uA_w)) {
+                plotTraces.push({
+                    z: z_grid_a,
+                    x: xVec,
+                    y: yVec,
+                    type: 'contour',
+                    showscale: false,
+                    autocontour: false,
+                    contours: {
+                        start: uA_w,
+                        end: uA_w,
+                        size: 0,
+                        coloring: 'lines',
+                        showlabels: true
+                    },
+                    line: {
+                        width: 2,
+                        color: 'rgba(211, 47, 47, 1)', // Solid Red
+                    },
+                    hoverinfo: 'skip',
+                    name: 'UA(Endowment)'
+                });
+            }
         }
 
         // Indifference Curves B
         if (settings.show_curves_B) {
             // For B, the grid is already computed as Z_B(x,y). 
-            // Note: In python code, Z_B = U_B(Total-x, Total-y).
-            // So at (x,y) in the box, the utility value is Z_B[y_idx][x_idx].
             plotTraces.push({
                 z: z_grid_b,
                 x: xVec,
@@ -151,11 +201,32 @@ export default function EdgeworthBox({ data, totalResources, endowmentA, visualS
                 hoverinfo: 'skip',
                 name: 'UB Map'
             });
+
+            // Specific IC for Endowment B
+            if (!isNaN(uB_w)) {
+                plotTraces.push({
+                    z: z_grid_b,
+                    x: xVec,
+                    y: yVec,
+                    type: 'contour',
+                    showscale: false,
+                    autocontour: false,
+                    contours: {
+                        start: uB_w,
+                        end: uB_w,
+                        size: 0,
+                        coloring: 'lines',
+                        showlabels: true
+                    },
+                    line: {
+                        width: 2,
+                        color: 'rgba(25, 118, 210, 1)', // Solid Blue
+                    },
+                    hoverinfo: 'skip',
+                    name: 'UB(Endowment)'
+                });
+            }
         }
-        
-        // Exchange Lens (Approximate via filled contour of Product or Min?)
-        // Hard to do exact boolean intersection fill in Plotly JS without custom calculated shape.
-        // We'll omit the shaded lens for now to keep it simple, or try to add it later.
     }
 
     // 1. Contract Curve (Pareto Set)

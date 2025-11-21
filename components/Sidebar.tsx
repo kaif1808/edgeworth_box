@@ -219,22 +219,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Total Resources */}
       <div className="flex flex-col gap-2">
         <h2 className="font-semibold">Total Resources</h2>
-        <div className="flex gap-2 items-center">
-          <label className="w-8">X:</label>
+        <div className="flex flex-col gap-1">
+          <div className="flex justify-between">
+            <label className="text-sm">X: {totalResources.x}</label>
+          </div>
           <input 
-            type="number" 
+            type="range" min="1" max="50" step="1"
             value={totalResources.x} 
             onChange={(e) => setTotalResources({...totalResources, x: Number(e.target.value)})}
-            className="border p-1 rounded w-full"
+            className="w-full"
           />
         </div>
-        <div className="flex gap-2 items-center">
-          <label className="w-8">Y:</label>
+        <div className="flex flex-col gap-1">
+          <div className="flex justify-between">
+            <label className="text-sm">Y: {totalResources.y}</label>
+          </div>
           <input 
-            type="number" 
+            type="range" min="1" max="50" step="1"
             value={totalResources.y} 
             onChange={(e) => setTotalResources({...totalResources, y: Number(e.target.value)})}
-            className="border p-1 rounded w-full"
+            className="w-full"
           />
         </div>
       </div>
@@ -242,22 +246,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Endowment A */}
       <div className="flex flex-col gap-2">
         <h2 className="font-semibold">Endowment A</h2>
-        <div className="flex gap-2 items-center">
-          <label className="w-8">X:</label>
+        <div className="flex flex-col gap-1">
+          <div className="flex justify-between">
+            <label className="text-sm">X: {endowmentA.x}</label>
+          </div>
           <input 
-            type="number" 
+            type="range" min="0" max={totalResources.x} step="0.5"
             value={endowmentA.x} 
             onChange={(e) => setEndowmentA({...endowmentA, x: Number(e.target.value)})}
-            className="border p-1 rounded w-full"
+            className="w-full"
           />
         </div>
-        <div className="flex gap-2 items-center">
-          <label className="w-8">Y:</label>
+        <div className="flex flex-col gap-1">
+          <div className="flex justify-between">
+            <label className="text-sm">Y: {endowmentA.y}</label>
+          </div>
           <input 
-            type="number" 
+            type="range" min="0" max={totalResources.y} step="0.5"
             value={endowmentA.y} 
             onChange={(e) => setEndowmentA({...endowmentA, y: Number(e.target.value)})}
-            className="border p-1 rounded w-full"
+            className="w-full"
           />
         </div>
       </div>
@@ -333,7 +341,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
             
             <div className="mt-2">
-                 <h4 className="text-xs font-semibold mb-1">Curve Density</h4>
+                 <h4 className="text-xs font-semibold mb-1">Curve Density (Manual Override)</h4>
                  <input 
                    type="range" min="10" max="100" step="5" 
                    value={visualSettings.n_curves} 
