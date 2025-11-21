@@ -70,6 +70,75 @@ const PRESETS: Record<string, any> = {
     }
 };
 
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+interface NumericControlProps {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (value: number) => void;
+}
+
+const NumericControl: React.FC<NumericControlProps> = ({ label, value, min, max, step, onChange }) => {
+  const safeValue = Number.isFinite(value) ? value : min;
+
+  const handleCommit = (next: number) => {
+    if (isNaN(next)) return;
+    const clamped = clamp(next, min, max);
+    onChange(clamped);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleCommit(Number(e.target.value));
+  };
+
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between text-sm">
+        <span className="font-medium text-slate-700">{label}</span>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            className="px-2 py-1 border border-slate-300 rounded text-sm text-slate-600 hover:bg-slate-100"
+            onClick={() => handleCommit(safeValue - step)}
+            aria-label={`Decrease ${label}`}
+          >
+            −
+          </button>
+          <input
+            type="number"
+            value={Number(safeValue.toFixed(4))}
+            min={min}
+            max={max}
+            step={step}
+            onChange={handleInputChange}
+            className="w-20 border border-slate-300 rounded px-2 py-1 text-right text-sm"
+          />
+          <button
+            type="button"
+            className="px-2 py-1 border border-slate-300 rounded text-sm text-slate-600 hover:bg-slate-100"
+            onClick={() => handleCommit(safeValue + step)}
+            aria-label={`Increase ${label}`}
+          >
+            +
+          </button>
+        </div>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={safeValue}
+        onChange={(e) => handleCommit(Number(e.target.value))}
+        className="w-full accent-blue-600"
+      />
+    </div>
+  );
+};
+
 export const Sidebar: React.FC<SidebarProps> = ({
   totalResources,
   setTotalResources,
@@ -109,75 +178,73 @@ export const Sidebar: React.FC<SidebarProps> = ({
       });
     };
 
-    return (
-      <div className="flex flex-col gap-2 border p-2 rounded bg-white">
-        <h3 className="font-semibold text-sm text-slate-700">{label} Params</h3>
-        
-        {agent.type === "Custom (Enter Formula)" ? (
-           <div className="flex flex-col gap-1">
-             <label className="text-xs">Formula (LaTeX supported, e.g., x^2 y):</label>
-             <input 
-               type="text"
-               value={agent.params.formula || ""}
-               onChange={(e) => handleChange('formula', e.target.value)}
-               placeholder="e.g. x * y^2"
-               className="border p-1 rounded w-full text-sm"
-             />
-             <p className="text-xs text-slate-500">Use x for Good X, y for Good Y.</p>
-           </div>
-        ) : (
-          <>
-            {/* Alpha/Beta are common to most */}
-            {["Cobb-Douglas", "Perfect Substitutes", "Perfect Complements (Min)", "Max Preferences (Convex)", "Mixed Cobb-Douglas"].includes(agent.type) && (
-              <>
-                <div className="flex gap-2 items-center">
-                  <label className="w-12 text-sm">Alpha:</label>
-                  <input 
-                    type="number" step="0.1"
-                    value={agent.params.alpha ?? 0.5} 
-                    onChange={(e) => handleChange('alpha', Number(e.target.value))}
-                    className="border p-1 rounded w-full text-sm"
+      return (
+        <div className="flex flex-col gap-2 border p-3 rounded bg-white">
+          <h3 className="font-semibold text-sm text-slate-700">{label} Params</h3>
+          
+          {agent.type === "Custom (Enter Formula)" ? (
+             <div className="flex flex-col gap-1">
+               <label className="text-xs">Formula (LaTeX supported, e.g., x^2 y):</label>
+               <input 
+                 type="text"
+                 value={agent.params.formula || ""}
+                 onChange={(e) => handleChange('formula', e.target.value)}
+                 placeholder="e.g. x * y^2"
+                 className="border p-1 rounded w-full text-sm"
+               />
+               <p className="text-xs text-slate-500">Use x for Good X, y for Good Y.</p>
+             </div>
+          ) : (
+            <>
+              {/* Alpha/Beta are common to most */}
+              {["Cobb-Douglas", "Perfect Substitutes", "Perfect Complements (Min)", "Max Preferences (Convex)", "Mixed Cobb-Douglas"].includes(agent.type) && (
+                <>
+                  <NumericControl
+                    label="Alpha (α)"
+                    value={agent.params.alpha ?? 0.5}
+                    min={0.1}
+                    max={10}
+                    step={0.1}
+                    onChange={(val) => handleChange('alpha', Number(val.toFixed(3)))}
                   />
-                </div>
-                <div className="flex gap-2 items-center">
-                  <label className="w-12 text-sm">Beta:</label>
-                  <input 
-                    type="number" step="0.1"
-                    value={agent.params.beta ?? 0.5} 
-                    onChange={(e) => handleChange('beta', Number(e.target.value))}
-                    className="border p-1 rounded w-full text-sm"
-                  />
-                </div>
-              </>
-            )}
+                  {agent.type !== "Mixed Cobb-Douglas" && (
+                    <NumericControl
+                      label="Beta (β)"
+                      value={agent.params.beta ?? 0.5}
+                      min={0.1}
+                      max={10}
+                      step={0.1}
+                      onChange={(val) => handleChange('beta', Number(val.toFixed(3)))}
+                    />
+                  )}
+                </>
+              )}
 
-            {/* a/b parameters for others */}
-            {["Quasi-Linear (Shifted Product)", "Satiation (Bliss Point)"].includes(agent.type) && (
-               <>
-                <div className="flex gap-2 items-center">
-                  <label className="w-12 text-sm">a:</label>
-                  <input 
-                    type="number" step="1"
-                    value={agent.params.a ?? 0} 
-                    onChange={(e) => handleChange('a', Number(e.target.value))}
-                    className="border p-1 rounded w-full text-sm"
+              {/* a/b parameters for others */}
+              {["Quasi-Linear (Shifted Product)", "Satiation (Bliss Point)"].includes(agent.type) && (
+                 <>
+                  <NumericControl
+                    label="a"
+                    value={agent.params.a ?? 0}
+                    min={-50}
+                    max={50}
+                    step={1}
+                    onChange={(val) => handleChange('a', Number(val.toFixed(2)))}
                   />
-                </div>
-                <div className="flex gap-2 items-center">
-                  <label className="w-12 text-sm">b:</label>
-                  <input 
-                    type="number" step="1"
-                    value={agent.params.b ?? 0} 
-                    onChange={(e) => handleChange('b', Number(e.target.value))}
-                    className="border p-1 rounded w-full text-sm"
+                  <NumericControl
+                    label="b"
+                    value={agent.params.b ?? 0}
+                    min={-50}
+                    max={50}
+                    step={1}
+                    onChange={(val) => handleChange('b', Number(val.toFixed(2)))}
                   />
-                </div>
-               </>
-            )}
-          </>
-        )}
-      </div>
-    );
+                 </>
+              )}
+            </>
+          )}
+        </div>
+      );
   };
 
   return (
@@ -216,59 +283,47 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </select>
       </div>
       
-      {/* Total Resources */}
-      <div className="flex flex-col gap-2">
-        <h2 className="font-semibold">Total Resources</h2>
-        <div className="flex flex-col gap-1">
-          <div className="flex justify-between">
-            <label className="text-sm">X: {totalResources.x}</label>
-          </div>
-          <input 
-            type="range" min="1" max="50" step="1"
-            value={totalResources.x} 
-            onChange={(e) => setTotalResources({...totalResources, x: Number(e.target.value)})}
-            className="w-full"
+        {/* Total Resources */}
+        <div className="flex flex-col gap-3">
+          <h2 className="font-semibold">Total Resources</h2>
+          <NumericControl
+            label="Good X (Total)"
+            value={totalResources.x}
+            min={1}
+            max={50}
+            step={1}
+            onChange={(val) => setTotalResources({ ...totalResources, x: Math.round(val) })}
+          />
+          <NumericControl
+            label="Good Y (Total)"
+            value={totalResources.y}
+            min={1}
+            max={50}
+            step={1}
+            onChange={(val) => setTotalResources({ ...totalResources, y: Math.round(val) })}
           />
         </div>
-        <div className="flex flex-col gap-1">
-          <div className="flex justify-between">
-            <label className="text-sm">Y: {totalResources.y}</label>
-          </div>
-          <input 
-            type="range" min="1" max="50" step="1"
-            value={totalResources.y} 
-            onChange={(e) => setTotalResources({...totalResources, y: Number(e.target.value)})}
-            className="w-full"
-          />
-        </div>
-      </div>
 
-      {/* Endowment A */}
-      <div className="flex flex-col gap-2">
-        <h2 className="font-semibold">Endowment A</h2>
-        <div className="flex flex-col gap-1">
-          <div className="flex justify-between">
-            <label className="text-sm">X: {endowmentA.x}</label>
-          </div>
-          <input 
-            type="range" min="0" max={totalResources.x} step="0.5"
-            value={endowmentA.x} 
-            onChange={(e) => setEndowmentA({...endowmentA, x: Number(e.target.value)})}
-            className="w-full"
+        {/* Endowment A */}
+        <div className="flex flex-col gap-3">
+          <h2 className="font-semibold">Endowment A</h2>
+          <NumericControl
+            label="ωₓ"
+            value={clamp(endowmentA.x, 0, totalResources.x)}
+            min={0}
+            max={totalResources.x}
+            step={0.5}
+            onChange={(val) => setEndowmentA({ ...endowmentA, x: Number(val.toFixed(2)) })}
+          />
+          <NumericControl
+            label="ωᵧ"
+            value={clamp(endowmentA.y, 0, totalResources.y)}
+            min={0}
+            max={totalResources.y}
+            step={0.5}
+            onChange={(val) => setEndowmentA({ ...endowmentA, y: Number(val.toFixed(2)) })}
           />
         </div>
-        <div className="flex flex-col gap-1">
-          <div className="flex justify-between">
-            <label className="text-sm">Y: {endowmentA.y}</label>
-          </div>
-          <input 
-            type="range" min="0" max={totalResources.y} step="0.5"
-            value={endowmentA.y} 
-            onChange={(e) => setEndowmentA({...endowmentA, y: Number(e.target.value)})}
-            className="w-full"
-          />
-        </div>
-      </div>
 
       {/* Agent A Settings */}
       <div className="flex flex-col gap-2">
@@ -340,15 +395,59 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
             </div>
             
-            <div className="mt-2">
-                 <h4 className="text-xs font-semibold mb-1">Curve Density (Manual Override)</h4>
-                 <input 
-                   type="range" min="10" max="100" step="5" 
-                   value={visualSettings.n_curves} 
-                   onChange={(e) => setVisualSettings({...visualSettings, n_curves: parseInt(e.target.value)})}
-                   className="w-full"
-                 />
-            </div>
+              <div className="mt-2">
+                <h4 className="text-xs font-semibold mb-1">Indifference Curves</h4>
+                <div className="flex text-xs font-semibold bg-slate-100 rounded overflow-hidden">
+                  {[
+                    { label: 'Density', value: 'Auto (Density)' },
+                    { label: 'Manual Count', value: 'Manual' }
+                  ].map(option => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={`flex-1 px-2 py-1 transition ${
+                        visualSettings.ic_mode === option.value
+                          ? 'bg-blue-600 text-white'
+                          : 'text-slate-600'
+                      }`}
+                      onClick={() => setVisualSettings({ ...visualSettings, ic_mode: option.value })}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+                {visualSettings.ic_mode === 'Auto (Density)' ? (
+                  <div className="mt-2">
+                    <NumericControl
+                      label="Curve Density"
+                      value={visualSettings.n_curves}
+                      min={10}
+                      max={100}
+                      step={5}
+                      onChange={(val) => setVisualSettings({ ...visualSettings, n_curves: Math.round(val) })}
+                    />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <NumericControl
+                      label="Agent A ICs"
+                      value={visualSettings.n_curves_A ?? 10}
+                      min={1}
+                      max={50}
+                      step={1}
+                      onChange={(val) => setVisualSettings({ ...visualSettings, n_curves_A: Math.round(val) })}
+                    />
+                    <NumericControl
+                      label="Agent B ICs"
+                      value={visualSettings.n_curves_B ?? 10}
+                      min={1}
+                      max={50}
+                      step={1}
+                      onChange={(val) => setVisualSettings({ ...visualSettings, n_curves_B: Math.round(val) })}
+                    />
+                  </div>
+                )}
+              </div>
           </div>
         )}
       </div>
