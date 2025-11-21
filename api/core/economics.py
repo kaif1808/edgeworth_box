@@ -99,7 +99,7 @@ def utility_func(x: Union[float, np.ndarray], y: Union[float, np.ndarray], u_typ
     a = params.get('a', 0.0)
     b = params.get('b', 0.0)
     
-    if u_type == "Cobb-Douglas":
+    if u_type == "Cobb-Douglas" or u_type == "Non-standard Cobb-Douglas":
         return (x ** alpha) * (y ** beta)
     elif u_type == "Perfect Substitutes":
         return alpha * x + beta * y
@@ -251,7 +251,7 @@ def get_demand(u_type: str, params: Dict[str, Any], px: float, py: float, income
     alpha = params.get('alpha', 0.5)
     beta = params.get('beta', 0.5)
     
-    if u_type in ["Cobb-Douglas", "Mixed Cobb-Douglas"]:
+    if u_type in ["Cobb-Douglas", "Mixed Cobb-Douglas", "Non-standard Cobb-Douglas"]:
         # CD: x = (alpha/(alpha+beta)) * I / px
         # Mixed CD: U = x * y^alpha -> equivalent to alpha=1, beta=alpha
         if u_type == "Mixed Cobb-Douglas":
@@ -520,53 +520,62 @@ def generate_workings(total_x, total_y, type_a, params_a, type_b, params_b, endo
 
     # 1. Primitives
     workings['1_primitives'] = {
-        "title": "1. Primitives & Endowments",
+        "title": "1. Model Primitives",
         "content": [
-            "We start with two agents, A and B.",
-            f"Total Resources: $X = {total_x}, Y = {total_y}$",
-            f"Agent A Utility: {type_a}",
-            f"Agent B Utility: {type_b}",
-            f"Endowment A: $w_A = ({endow_a[0]:.2f}, {endow_a[1]:.2f})$",
-            f"Endowment B: $w_B = ({endow_b[0]:.2f}, {endow_b[1]:.2f})$"
+            "**Agents & Endowments**",
+            f"Agent A: Utility ${type_a}$, Endowment $\\omega^A = ({endow_a[0]:.2f}, {endow_a[1]:.2f})$",
+            f"Agent B: Utility ${type_b}$, Endowment $\\omega^B = ({endow_b[0]:.2f}, {endow_b[1]:.2f})$",
+            "**Total Resources**",
+            f"$\\bar{{X}} = {total_x}, \\bar{{Y}} = {total_y}$"
         ]
     }
 
-    # 2. Equilibrium
-    workings['2_equilibrium'] = {
-        "title": "2. Walrasian Equilibrium",
-        "content": [
-            "The Walrasian Equilibrium is found where excess demand is zero.",
-            f"Equilibrium Price Ratio: $p_x/p_y = {px:.4f}$ (with $p_y = 1$)",
-            "Allocation:",
-            f"Agent A: $x_A = {alloc_a[0]:.2f}, y_A = {alloc_a[1]:.2f}$",
-            f"Agent B: $x_B = {total_x - alloc_a[0]:.2f}, y_B = {total_y - alloc_a[1]:.2f}$"
-        ]
-    }
-
-    # 3. Efficiency
+    # 2. Efficiency Condition (Pareto Set)
     # Helper to format MRS safely
     def format_mrs(val):
-        if np.isinf(val):
-            if val > 0:
-                return r"\infty"
-            else:
-                return r"-\infty"
+        if np.isinf(val): return r"\infty"
         return f"{val:.4f}"
 
-    # Helper for difference
-    if np.isinf(mrs_a_eq) or np.isinf(mrs_b_eq):
-        diff_str = r"\text{N/A (Corner/Infinite)}"
-    else:
-        diff_str = f"{abs(mrs_a_eq - mrs_b_eq):.4f}"
-
-    workings['3_efficiency'] = {
-        "title": "3. Pareto Efficiency Check",
+    workings['2_efficiency'] = {
+        "title": "2. Efficiency Condition (Pareto Set)",
         "content": [
-            "At the equilibrium allocation, we calculate the Marginal Rate of Substitution (MRS) for each agent.",
-            f"MRS A: ${format_mrs(mrs_a_eq)}$",
-            f"MRS B: ${format_mrs(mrs_b_eq)}$",
-            f"Difference: $|MRS_A - MRS_B| = {diff_str}$",
-            "If the difference is close to zero, the allocation is Pareto efficient."
+            "An allocation is Pareto Efficient if $MRS^A = MRS^B$ (for interior solutions).",
+            f"At the equilibrium allocation:",
+            f"$MRS^A = {format_mrs(mrs_a_eq)}$",
+            f"$MRS^B = {format_mrs(mrs_b_eq)}$",
+            "The Contract Curve is the set of all points where these marginal rates of substitution are equal (tangency condition), bounded by feasibility."
+        ]
+    }
+
+    # 3. The Core
+    u_a_w = utility_func(endow_a[0], endow_a[1], type_a, params_a)
+    u_b_w = utility_func(endow_b[0], endow_b[1], type_b, params_b)
+
+    workings['3_core'] = {
+        "title": "3. The Core",
+        "content": [
+            "The Core is the subset of the Pareto Set that satisfies Individual Rationality (IR).",
+            "**Utility at Endowment (Reservation Utility):**",
+            f"$u^A(\\omega^A) = {u_a_w:.2f}$",
+            f"$u^B(\\omega^B) = {u_b_w:.2f}$",
+            "**Core Condition:**",
+            f"Any core allocation must satisfy $u^A(x^A) \\ge {u_a_w:.2f}$ and $u^B(x^B) \\ge {u_b_w:.2f}$."
+        ]
+    }
+
+    # 4. Walrasian Equilibrium
+    workings['4_equilibrium'] = {
+        "title": "4. Walrasian Equilibrium Calculation",
+        "content": [
+            "We solve for prices $p = (p_x, 1)$ such that excess demand is zero.",
+            "**Budget Constraints:**",
+            f"$p_x x^A + y^A = p_x ({endow_a[0]}) + {endow_a[1]}$",
+            f"$p_x x^B + y^B = p_x ({endow_b[0]}) + {endow_b[1]}$",
+            "**Equilibrium Prices:**",
+            f"$p_x^* = {px:.4f}, p_y^* = 1$",
+            "**Final Allocation:**",
+            f"$x^A = {alloc_a[0]:.2f}, y^A = {alloc_a[1]:.2f}$",
+            f"$x^B = {total_x - alloc_a[0]:.2f}, y^B = {total_y - alloc_a[1]:.2f}$"
         ]
     }
 

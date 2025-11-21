@@ -1,6 +1,16 @@
 # Development Status
 
 ## 2025-11-21
+- **Feature**: Overhauled "Analytical Workflow" UI.
+  - Introduced a permanently visible "Overview" section (Prices, Allocation, Utility, MRS).
+  - Converted detailed derivation steps into a collapsible vertical accordion.
+- **Backend**: Aligned analytical workflow steps with theoretical framework (`geneqnotes.md`).
+  - Renamed steps: Primitives, Efficiency Condition (Pareto Set), The Core, Walrasian Equilibrium.
+  - Updated LaTeX explanations for clarity and consistency.
+- **Feature**: Enhanced Cobb-Douglas parameter controls.
+  - **Standard**: Strictly enforced $\alpha + \beta = 1$ constraint with linked sliders.
+  - **Non-standard**: Added new utility type allowing independent parameters ($\alpha, \beta > 1.0$).
+  - Refined slider step size to 0.05 for precision.
 - **Feature**: Added "Analytical Workflow" tabs to `EdgeworthBox` component.
   - Implemented a step-by-step breakdown of the equilibrium calculation (Primitives, Income, Demands, Excess Demand, Equilibrium, Optimality, Feasibility).
   - Updated backend (`api/core/economics.py`) to generate LaTeX-formatted explanations dynamically based on the simulation state.

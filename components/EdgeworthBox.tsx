@@ -81,16 +81,11 @@ interface EdgeworthBoxProps {
 
 export default function EdgeworthBox({ data, totalResources, endowmentA, visualSettings, darkMode }: EdgeworthBoxProps) {
   const { contract_curve, walrasian_equilibrium, z_grid_a, z_grid_b, initial_state, workings } = data;
-  const [activeTab, setActiveTab] = useState<string>('primitives');
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
-  // Update active tab when workings change, if needed, or keep default
-  // Simple effect to ensure we have a valid tab selected if data loads
-  React.useEffect(() => {
-      if (workings && !workings[activeTab]) {
-          const firstKey = Object.keys(workings)[0];
-          if (firstKey) setActiveTab(firstKey);
-      }
-  }, [workings, activeTab]);
+  const toggleSection = (key: string) => {
+    setExpandedSection(expandedSection === key ? null : key);
+  };
 
   const renderLatexLine = (line: string, index: number) => {
     const parts = line.split(/\$(\$)?/); // Split by $$ or $
@@ -475,30 +470,112 @@ export default function EdgeworthBox({ data, totalResources, endowmentA, visualS
         />
       </div>
       
+      {/* Overview Section */}
+      <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
+        <h3 className="text-md font-semibold text-slate-800 dark:text-slate-200 mb-4">Equilibrium Overview</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+           {/* Prices */}
+           <div>
+             <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Equilibrium Prices</h4>
+             <div className="flex flex-col gap-1">
+               <div className="flex justify-between text-sm">
+                 <span className="text-slate-600 dark:text-slate-300">Price of X ($p_x$):</span>
+                 <span className="font-mono font-medium text-slate-900 dark:text-slate-100">
+                    {typeof walrasian_equilibrium.price_ratio_px_py === 'number' 
+                      ? walrasian_equilibrium.price_ratio_px_py.toFixed(4) 
+                      : walrasian_equilibrium.price_ratio_px_py || 'N/A'}
+                 </span>
+               </div>
+               <div className="flex justify-between text-sm">
+                 <span className="text-slate-600 dark:text-slate-300">Price of Y ($p_y$):</span>
+                 <span className="font-mono font-medium text-slate-900 dark:text-slate-100">1.0000 (Numeraire)</span>
+               </div>
+             </div>
+           </div>
+
+           {/* Allocation */}
+           <div>
+             <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Allocation</h4>
+             <div className="flex flex-col gap-1">
+               <div className="flex justify-between text-sm">
+                 <span className="text-slate-600 dark:text-slate-300">Agent A ($x_A, y_A$):</span>
+                 <span className="font-mono font-medium text-slate-900 dark:text-slate-100">
+                   ({walrasian_equilibrium.allocation_a.x.toFixed(2)}, {walrasian_equilibrium.allocation_a.y.toFixed(2)})
+                 </span>
+               </div>
+               <div className="flex justify-between text-sm">
+                 <span className="text-slate-600 dark:text-slate-300">Agent B ($x_B, y_B$):</span>
+                 <span className="font-mono font-medium text-slate-900 dark:text-slate-100">
+                   ({walrasian_equilibrium.allocation_b.x.toFixed(2)}, {walrasian_equilibrium.allocation_b.y.toFixed(2)})
+                 </span>
+               </div>
+             </div>
+           </div>
+           
+           {/* Utility & MRS */}
+           <div className="md:col-span-2">
+             <h4 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Utility & MRS</h4>
+             <div className="grid grid-cols-2 gap-4">
+               <div className="flex flex-col">
+                 <span className="text-xs text-slate-500 dark:text-slate-400 mb-1">Agent A</span>
+                 <div className="flex justify-between text-sm">
+                    <span className="text-slate-600 dark:text-slate-300">U:</span>
+                    <span className="font-mono text-slate-900 dark:text-slate-100">
+                        {walrasian_equilibrium.utility_a ? Number(walrasian_equilibrium.utility_a).toFixed(2) : '-'}
+                    </span>
+                 </div>
+                 <div className="flex justify-between text-sm">
+                    <span className="text-slate-600 dark:text-slate-300">MRS:</span>
+                    <span className="font-mono text-slate-900 dark:text-slate-100">
+                        {walrasian_equilibrium.mrs_a ? Number(walrasian_equilibrium.mrs_a).toFixed(2) : '-'}
+                    </span>
+                 </div>
+               </div>
+               <div className="flex flex-col">
+                 <span className="text-xs text-slate-500 dark:text-slate-400 mb-1">Agent B</span>
+                 <div className="flex justify-between text-sm">
+                    <span className="text-slate-600 dark:text-slate-300">U:</span>
+                    <span className="font-mono text-slate-900 dark:text-slate-100">
+                        {walrasian_equilibrium.utility_b ? Number(walrasian_equilibrium.utility_b).toFixed(2) : '-'}
+                    </span>
+                 </div>
+                 <div className="flex justify-between text-sm">
+                    <span className="text-slate-600 dark:text-slate-300">MRS:</span>
+                    <span className="font-mono text-slate-900 dark:text-slate-100">
+                        {walrasian_equilibrium.mrs_b ? Number(walrasian_equilibrium.mrs_b).toFixed(2) : '-'}
+                    </span>
+                 </div>
+               </div>
+             </div>
+           </div>
+        </div>
+      </div>
+
       {workings && Object.keys(workings).length > 0 && (
         <div className="mt-6 pt-4 border-t border-gray-200 dark:border-slate-700">
           <h3 className="text-md font-semibold text-slate-800 dark:text-slate-200 mb-3">Analytical Workflow</h3>
-          <div className="flex space-x-1 border-b border-gray-200 dark:border-slate-700 overflow-x-auto pb-1">
-            {Object.entries(workings).map(([key, { title }]) => (
-              <button
-                key={key}
-                onClick={() => setActiveTab(key)}
-                className={`px-4 py-2 text-xs font-medium transition-colors duration-150 focus:outline-none whitespace-nowrap rounded-t-md
-                  ${activeTab === key
-                    ? 'bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 border-b-2 border-blue-500'
-                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50'
-                  }`}
-              >
-                {title.split('. ')[0]} {/* Show number/short title in tab, or full title? Let's just show full title but maybe truncated if needed. The user workflow titles are short enough. */}
-                {/* Actually title includes "1. Primitives...", let's just use the key or a mapping if we want shorter. But title is fine. */}
-              </button>
-            ))}
-          </div>
-          <div className="mt-4 max-h-64 overflow-y-auto p-4 bg-slate-50 dark:bg-slate-800/50 rounded-b-md rounded-tr-md border border-slate-100 dark:border-slate-700">
+          <div className="flex flex-col gap-2">
             {Object.entries(workings).map(([key, { title, content }]) => (
-              <div key={key} className={activeTab === key ? 'block' : 'hidden'}>
-                <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3">{title}</h4>
-                {content.map(renderLatexLine)}
+              <div key={key} className="border border-slate-200 dark:border-slate-700 rounded-md overflow-hidden">
+                <button
+                  onClick={() => toggleSection(key)}
+                  className="w-full px-4 py-3 text-left bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex justify-between items-center"
+                >
+                  <span className="font-medium text-sm text-slate-700 dark:text-slate-300">{title}</span>
+                  <svg 
+                    className={`w-4 h-4 transform transition-transform duration-200 text-slate-500 ${expandedSection === key ? 'rotate-180' : ''}`} 
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {expandedSection === key && (
+                  <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700">
+                    {content.map(renderLatexLine)}
+                  </div>
+                )}
               </div>
             ))}
           </div>

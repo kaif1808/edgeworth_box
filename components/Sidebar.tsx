@@ -34,6 +34,7 @@ export interface AgentParams {
 
 const UTILITY_TYPES = [
   "Cobb-Douglas",
+  "Non-standard Cobb-Douglas",
   "Perfect Substitutes",
   "Perfect Complements (Min)",
   "Max Preferences (Convex)",
@@ -175,24 +176,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const renderParamsInput = (agent: AgentParams, setAgent: (val: AgentParams) => void, label: string) => {
-    const isCobbDouglas = agent.type === "Cobb-Douglas";
+    const isStandardCD = agent.type === "Cobb-Douglas";
+    const isNonStandardCD = agent.type === "Non-standard Cobb-Douglas";
     
     const handleChange = (key: string, value: any) => {
       let newParams = { ...agent.params, [key]: value };
 
-      // Enforce Cobb-Douglas constraint: alpha + beta <= 1
-      if (isCobbDouglas && (key === 'alpha' || key === 'beta')) {
-        const alpha = key === 'alpha' ? value : (agent.params.alpha ?? 0.5);
-        const beta = key === 'beta' ? value : (agent.params.beta ?? 0.5);
-
-        if (alpha + beta > 1.0) {
-          if (key === 'alpha') {
-            // Adjust beta to satisfy constraint
-            newParams.beta = Number(Math.max(0.01, 1.0 - alpha).toFixed(3));
-          } else {
-            // Adjust alpha to satisfy constraint
-            newParams.alpha = Number(Math.max(0.01, 1.0 - beta).toFixed(3));
-          }
+      // Standard Cobb-Douglas: Strict Alpha + Beta = 1
+      if (isStandardCD) {
+        if (key === 'alpha') {
+           newParams.beta = Number(Math.max(0.01, 1.0 - value).toFixed(3));
+        } else if (key === 'beta') {
+           newParams.alpha = Number(Math.max(0.01, 1.0 - value).toFixed(3));
         }
       }
 
@@ -221,13 +216,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           ) : (
             <>
               {/* Alpha/Beta are common to most */}
-              {["Cobb-Douglas", "Perfect Substitutes", "Perfect Complements (Min)", "Max Preferences (Convex)", "Mixed Cobb-Douglas"].includes(agent.type) && (
+              {["Cobb-Douglas", "Non-standard Cobb-Douglas", "Perfect Substitutes", "Perfect Complements (Min)", "Max Preferences (Convex)", "Mixed Cobb-Douglas"].includes(agent.type) && (
                 <>
                   <NumericControl
                     label="Alpha (α)"
                     value={agent.params.alpha ?? 0.5}
                     min={0.01}
-                    max={1.0}
+                    max={isNonStandardCD ? 10.0 : 1.0}
                     step={0.05}
                     onChange={(val) => handleChange('alpha', Number(val.toFixed(3)))}
                   />
@@ -236,7 +231,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       label="Beta (β)"
                       value={agent.params.beta ?? 0.5}
                       min={0.01}
-                      max={isCobbDouglas ? Number((1.0 - (agent.params.alpha ?? 0.5)).toFixed(3)) : 1.0}
+                      max={isNonStandardCD ? 10.0 : 1.0}
                       step={0.05}
                       onChange={(val) => handleChange('beta', Number(val.toFixed(3)))}
                     />
