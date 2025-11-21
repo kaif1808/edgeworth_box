@@ -10,6 +10,11 @@
   - Implemented a gradient-based `verify_pareto_efficiency` check to robustly identify Pareto-efficient points, including corner solutions.
   - Updated `solve_contract_curve` to explicitly sample boundary edges and verify candidates, ensuring correct rendering for complex preference structures (Quasi-Linear, Satiation, etc.).
 - **Test**: Created `tests/test_pareto_examples.py` to verify backend logic against analytical solutions from standard economic examples.
+- **Feature**: Implemented comprehensive **Dark Mode** support.
+  - Added a toggle in the Sidebar (Sun/Moon).
+  - Configured global dark theme styles using Tailwind CSS.
+  - Updated `EdgeworthBox` (Plotly) to dynamically switch chart backgrounds, axes, and text colors for legibility in dark mode.
+  - Ensured UI consistency across Sidebar, Modals, and Mobile views.
 - **Feature**: Integrated live updates for Edgeworth Box simulation with debounced API calls.
 - **Feature**: Added slider controls for Total Resources and Endowments in the Sidebar.
 - **Visualization**: Implemented "Exchange Lens" (mutually beneficial trade area) shading.
