@@ -207,7 +207,7 @@ export default function Home() {
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-xs uppercase tracking-wide text-blue-600 dark:text-blue-400 font-semibold">Edgeworth Box</p>
-              <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Exchange Simulator</h1>
+              <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Simulator & Solver</h1>
               <p className="text-sm text-slate-500 dark:text-slate-400">Tune resources, compare equilibria.</p>
             </div>
             <div className="flex items-center gap-3">
@@ -434,6 +434,16 @@ export default function Home() {
                   <p className="text-sm">Adjust parameters in the controls to get started.</p>
                 </div>
               )}
+              
+              <section className="mt-8 border-t border-slate-200 dark:border-slate-800 pt-6">
+                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-2">About this Edgeworth Box Simulator & Solver</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                  This <strong>Edgeworth Box Simulator</strong> is a powerful <strong>economics demonstrator</strong> and <strong>solver</strong> designed to visualize general equilibrium concepts. 
+                  It calculates and displays the <strong>Contract Curve</strong>, identifying all <strong>Pareto efficient</strong> allocations where the marginal rates of substitution (MRS) are equal.
+                  The tool also solves for the <strong>Walrasian Equilibrium</strong> (Competitive Equilibrium), finding the specific price ratio and allocation that clears the market for both goods.
+                  Ideal for students and researchers, this simulation provides instant feedback on how endowments and utility functions (like Cobb-Douglas, Perfect Complements, or Substitutes) affect market outcomes.
+                </p>
+              </section>
             </div>
           </div>
         </section>

@@ -5,8 +5,13 @@ import RandomFavicon from '@/components/RandomFavicon'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Edgeworth Box',
-  description: 'Interactive Edgeworth Box Visualization',
+  metadataBase: new URL('https://imedgeworthboxingit.app'),
+  title: 'Edgeworth Box Simulator & Solver | Interactive Economics Simulation',
+  description: 'Free online Edgeworth Box simulator and solver. Visualize Pareto efficiency, Contract Curves, and Walrasian Equilibrium in this interactive economics demonstrator.',
+  keywords: 'edgeworth box, economics simulator, pareto efficiency, contract curve, walrasian equilibrium, economics solver, microeconomics simulation, demonstrator',
+  alternates: {
+    canonical: '/',
+  },
   icons: {
     icon: [
       { url: '/favicon-jones-16x16.png', sizes: '16x16', type: 'image/png' },
@@ -19,23 +24,27 @@ export const metadata: Metadata = {
   },
   manifest: '/site-jones.webmanifest',
   openGraph: {
-    title: 'Edgeworth Box',
-    description: 'Interactive Edgeworth Box Visualization',
+    title: 'Edgeworth Box Simulator & Solver',
+    description: 'Interactive Edgeworth Box visualization and economics solver. Analyze Pareto efficiency and general equilibrium.',
     type: 'website',
+    url: 'https://imedgeworthboxingit.app',
     images: [
       {
         url: '/apple-touch-icon-jones.png',
         width: 180,
         height: 180,
-        alt: 'Edgeworth Box',
+        alt: 'Edgeworth Box Simulator',
       },
     ],
   },
   twitter: {
     card: 'summary',
-    title: 'Edgeworth Box',
-    description: 'Interactive Edgeworth Box Visualization',
+    title: 'Edgeworth Box Simulator & Solver',
+    description: 'Interactive Edgeworth Box visualization and economics solver.',
     images: ['/apple-touch-icon-jones.png'],
+  },
+  verification: {
+    google: 'sYbTbe6tv1L9hwiVASVyUiVokjGaMdmocW7RlnK3NG0',
   },
 }
 
@@ -44,12 +53,34 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'Edgeworth Box Simulator & Solver',
+    applicationCategory: 'EducationalApplication',
+    operatingSystem: 'Any',
+    description: 'Free online Edgeworth Box simulator and solver. Visualize Pareto efficiency, Contract Curves, and Walrasian Equilibrium in this interactive economics demonstrator.',
+    url: 'https://imedgeworthboxingit.app',
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'USD',
+    },
+  };
+
   return (
     <html lang="en">
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      </head>
       <body className="min-h-screen bg-background font-sans antialiased">
         <RandomFavicon />
         {children}
         <SpeedInsights />
+        <Analytics />
       </body>
     </html>
   )

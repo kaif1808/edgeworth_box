@@ -1,6 +1,12 @@
 # Development Status
 
 ## 2025-11-22
+- **SEO Optimization**:
+  - Enhanced `app/layout.tsx` with optimized metadata, keywords, and canonical URL.
+  - Added structured data (JSON-LD) for `SoftwareApplication` and `WebApplication`.
+  - Created `app/sitemap.ts` and `app/robots.ts` for search engine discovery.
+  - Added Google Search Console verification tag.
+  - Updated `app/page.tsx` headings and added a descriptive footer section for better crawlability.
 - **Feature**: Integrated comprehensive error handling and explanations for when equilibrium, Pareto sets, or Core cannot be found.
   - **Backend**: Updated `api/core/economics.py` to detect solver failures (e.g., non-convex preferences) and return specific failure messages.
   - **Frontend**: Updated `app/page.tsx` to conditionally display a "Status Card" with failure reasons instead of partial results.
