@@ -53,7 +53,7 @@ const PRESETS: Record<string, any> = {
         A: { type: "Quasi-Linear (Shifted Product)", params: { b: 3.0 } },
         B: { type: "Quasi-Linear (Shifted Product)", params: { b: 2.0 } }
     },
-    "Textbook: Blair 15.B.6b": {
+    "Multiple Equilibria": {
         dim: [1, 1], endow: [1, 0],
         A: { type: "Custom (Enter Formula)", params: { formula: "(x^(-2) + (12/37)^3 * y^(-2))^(-0.5)" } },
         B: { type: "Custom (Enter Formula)", params: { formula: "((12/37)^3 * x^(-2) + y^(-2))^(-0.5)" } }

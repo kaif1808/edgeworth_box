@@ -364,9 +364,9 @@ def get_demand(u_type: str, params: Dict[str, Any], px: float, py: float, income
     
     return clamp_res(x0, y0)
 
-def solve_walrasian_equilibrium(total_x: float, total_y: float, type_A: str, params_A: Dict[str, Any], type_B: str, params_B: Dict[str, Any], endow_A: Tuple[float, float], endow_B: Tuple[float, float]) -> Tuple[bool, str, float, Tuple[float, float]]:
+def solve_walrasian_equilibrium(total_x: float, total_y: float, type_A: str, params_A: Dict[str, Any], type_B: str, params_B: Dict[str, Any], endow_A: Tuple[float, float], endow_B: Tuple[float, float]) -> Tuple[bool, str, List[Tuple[float, Tuple[float, float]]]]:
     """
-    Solves for the Walrasian Equilibrium prices and allocation.
+    Solves for all Walrasian Equilibrium prices and allocations.
 
     Args:
         total_x (float): Total quantity of good X.
@@ -379,11 +379,10 @@ def solve_walrasian_equilibrium(total_x: float, total_y: float, type_A: str, par
         endow_B (Tuple[float, float]): Endowment for Agent B (x, y).
 
     Returns:
-        Tuple[bool, str, float, Tuple[float, float]]: 
+        Tuple[bool, str, List[Tuple[float, Tuple[float, float]]]]: 
             - Success (bool)
             - Message (str)
-            - Equilibrium price of X (px)
-            - Agent A's allocation (xA, yA)
+            - List of Equilibria [(price, allocation_a), ...]
     """
     # Normalize py = 1. Solve for px.
     py = 1.0
@@ -405,38 +404,69 @@ def solve_walrasian_equilibrium(total_x: float, total_y: float, type_A: str, par
         return (xA + xB) - total_x
 
     # Root Finding for px
-    # Try to bracket the root
-    low, high = 0.01, 100.0
-    px_eq = 1.0
-    success = False
-    message = "Equilibrium found."
+    # Scan logarithmic range for multiple roots
+    low_exp, high_exp = -2.0, 2.0
+    search_points = np.logspace(low_exp, high_exp, 200) # 200 points from 0.01 to 100
+    
+    roots = []
+    
+    for i in range(len(search_points) - 1):
+        p1 = search_points[i]
+        p2 = search_points[i+1]
+        
+        ed1 = excess_demand_x(p1)
+        ed2 = excess_demand_x(p2)
+        
+        if ed1 * ed2 <= 0: # Sign change detected
+            try:
+                px_root = brentq(excess_demand_x, p1, p2, xtol=1e-4)
+                
+                # Check if unique (avoid duplicates from adjacent intervals)
+                is_unique = True
+                for r in roots:
+                    if abs(r - px_root) < 1e-3:
+                        is_unique = False
+                        break
+                
+                if is_unique:
+                    roots.append(px_root)
+            except ValueError:
+                continue
 
-    try:
-        px_eq = brentq(excess_demand_x, low, high, xtol=1e-4)
+    equilibria = []
+    success = False
+    message = ""
+
+    if roots:
         success = True
-    except ValueError:
-        # brentq failed (no sign change). Try minimize absolute excess demand.
+        message = f"Found {len(roots)} equilibrium price(s)."
+        
+        for px_eq in roots:
+            # Calculate Final Allocation for each price
+            IA = px_eq * wAx + py * wAy
+            xA, yA = get_demand(type_A, params_A, px_eq, py, IA, total_x, total_y)
+            equilibria.append((px_eq, (xA, yA)))
+            
+    else:
+        # Fallback to minimization if no root found (scan failed)
         res = minimize_scalar(lambda p: abs(excess_demand_x(p)), bounds=(0.01, 100.0), method='bounded')
         px_eq = res.x
         
-        # Check if excess demand is actually close to 0
         final_excess = excess_demand_x(px_eq)
-        if abs(final_excess) < 0.1 * total_x: # Allow 10% error margin for rough solutions
+        if abs(final_excess) < 0.1 * total_x: 
              success = True
              message = "Approximate equilibrium found (minimized excess demand)."
+             IA = px_eq * wAx + py * wAy
+             xA, yA = get_demand(type_A, params_A, px_eq, py, IA, total_x, total_y)
+             equilibria.append((px_eq, (xA, yA)))
         else:
              success = False
              message = f"Could not find market clearing price. Excess demand for X at best price (p={px_eq:.2f}) is {final_excess:.2f}."
              
-             # Diagnose common failures
              if not is_convex_preference(type_A) or not is_convex_preference(type_B):
                  message += " Non-convex preferences (e.g., Max Preferences) often lead to corner solutions that do not clear the market."
 
-    # Calculate Final Allocation
-    IA = px_eq * wAx + py * wAy
-    xA, yA = get_demand(type_A, params_A, px_eq, py, IA, total_x, total_y)
-    
-    return success, message, px_eq, (xA, yA)
+    return success, message, equilibria
 
 def solve_contract_curve(total_x: float, total_y: float, type_A: str, params_A: Dict[str, Any], type_B: str, params_B: Dict[str, Any], uA_w: float, uB_w: float, Z_B_min: float, Z_B_max: float) -> Tuple[List[float], List[float], List[float], List[float]]:
     """
@@ -607,7 +637,7 @@ def get_utility_string(u_type: str, params: Dict[str, Any]) -> str:
         return params.get('formula', 'x*y')
     return "u(x,y)"
 
-def generate_workings(total_x, total_y, type_a, params_a, type_b, params_b, endow_a, endow_b, px, alloc_a, u_a_eq, u_b_eq, mrs_a_eq, mrs_b_eq, we_success=True, we_message="", pareto_found=True, core_found=True):
+def generate_workings(total_x, total_y, type_a, params_a, type_b, params_b, endow_a, endow_b, equilibria, we_success=True, we_message="", pareto_found=True, core_found=True):
     workings = {}
 
     # 1. Primitives
@@ -632,7 +662,6 @@ def generate_workings(total_x, total_y, type_a, params_a, type_b, params_b, endo
     }
 
     # 2. Demand Functions (Simplified)
-    # We won't do full symbolic derivation here, but we can show the form for standard types
     workings['2_demand'] = {
         "title": "2. Demand Functions",
         "content": [
@@ -647,27 +676,19 @@ def generate_workings(total_x, total_y, type_a, params_a, type_b, params_b, endo
     }
 
     # 3. Market Clearing
-    # Calculate demands at equilibrium
-    I_A = px * endow_a[0] + 1.0 * endow_a[1]
-    I_B = px * endow_b[0] + 1.0 * endow_b[1]
-    xA_dem, yA_dem = get_demand(type_a, params_a, px, 1.0, I_A, total_x, total_y)
-    xB_dem, yB_dem = get_demand(type_b, params_b, px, 1.0, I_B, total_x, total_y)
-    
-    excess_x = (xA_dem + xB_dem) - total_x
-
-    if we_success:
+    if we_success and equilibria:
+        content = [
+            "Equilibrium price $p_x^*$ is found where excess demand for X is zero.",
+            f"$Z_x(p_x) = x^A(p_x) + x^B(p_x) - \\bar{{X}} = 0$",
+            f"**Found {len(equilibria)} Equilibrium/Equilibria:**"
+        ]
+        
+        for i, (px, _) in enumerate(equilibria):
+            content.append(f"{i+1}. $p_x = {px:.4f}$")
+            
         workings['3_market_clearing'] = {
             "title": "3. Market Clearing Condition",
-            "content": [
-                "Equilibrium price $p_x^*$ is found where excess demand for X is zero.",
-                f"$Z_x(p_x) = x^A(p_x) + x^B(p_x) - \\bar{{X}} = 0$",
-                f"At $p_x = {px:.4f}$:",
-                f"Demand A: $x^A = {xA_dem:.2f}$",
-                f"Demand B: $x^B = {xB_dem:.2f}$",
-                f"Total Demand: ${xA_dem + xB_dem:.2f}$",
-                f"Total Supply: ${total_x}$",
-                f"Excess Demand: ${excess_x:.4f} \\approx 0$"
-            ]
+            "content": content
         }
     else:
         workings['3_market_clearing'] = {
@@ -675,13 +696,11 @@ def generate_workings(total_x, total_y, type_a, params_a, type_b, params_b, endo
             "content": [
                 "**Walrasian Equilibrium Not Found**",
                 f"The solver failed to find a price where excess demand is zero.",
-                f"Best attempt at $p_x = {px:.4f}$ yielded Excess Demand: ${excess_x:.4f}$",
                 f"**Reason:** {we_message}"
             ]
         }
 
     # 4. Efficiency Condition (Pareto Set)
-    # Helper to format MRS safely
     def format_mrs(val):
         if np.isinf(val): return r"\infty"
         return f"{val:.4f}"
@@ -691,9 +710,6 @@ def generate_workings(total_x, total_y, type_a, params_a, type_b, params_b, endo
             "title": "4. Efficiency Condition (Pareto Set)",
             "content": [
                 "An allocation is Pareto Efficient if $MRS^A = MRS^B$ (for interior solutions).",
-                f"At the equilibrium allocation (if valid):",
-                f"$MRS^A = {format_mrs(mrs_a_eq)}$",
-                f"$MRS^B = {format_mrs(mrs_b_eq)}$",
                 "The Contract Curve is the set of all points where these marginal rates of substitution are equal (tangency condition), bounded by feasibility."
             ]
         }
@@ -703,10 +719,6 @@ def generate_workings(total_x, total_y, type_a, params_a, type_b, params_b, endo
             "content": [
                 "**No Pareto Efficient Points Found**",
                 "The system could not identify any points where neither agent can be made better off without harming the other.",
-                "This may be due to:",
-                "- Highly non-convex preferences (discontinuous)",
-                "- Numerical instability in custom formulas",
-                "- Empty feasible set"
             ]
         }
 
@@ -731,7 +743,7 @@ def generate_workings(total_x, total_y, type_a, params_a, type_b, params_b, endo
             "title": "5. The Core (Empty)",
             "content": [
                 "**No Core Points Found**",
-                "The Core is empty. This means there are no Pareto efficient allocations that are individually rational for both agents given their initial endowments.",
+                "The Core is empty.",
                 "**Reservation Utilities:**",
                 f"$u^A(\\omega^A) = {u_a_w:.2f}$",
                 f"$u^B(\\omega^B) = {u_b_w:.2f}$"
@@ -739,16 +751,18 @@ def generate_workings(total_x, total_y, type_a, params_a, type_b, params_b, endo
         }
 
     # 6. Final Allocation Summary
-    if we_success:
+    if we_success and equilibria:
+        content = ["**Equilibrium Summary:**"]
+        for i, (px, (ax, ay)) in enumerate(equilibria):
+             content.append(f"**Equilibrium {i+1}:**")
+             content.append(f"$p_x^* = {px:.4f}, p_y^* = 1$")
+             content.append(f"Allocation A: ({ax:.2f}, {ay:.2f})")
+             content.append(f"Allocation B: ({total_x - ax:.2f}, {total_y - ay:.2f})")
+             content.append("")
+
         workings['6_summary'] = {
             "title": "6. Final Allocation Summary",
-            "content": [
-                "**Equilibrium Prices:**",
-                f"$p_x^* = {px:.4f}, p_y^* = 1$",
-                "**Final Allocation:**",
-                f"$x^A = {alloc_a[0]:.2f}, y^A = {alloc_a[1]:.2f}$",
-                f"$x^B = {total_x - alloc_a[0]:.2f}, y^B = {total_y - alloc_a[1]:.2f}$"
-            ]
+            "content": content
         }
     else:
         workings['6_summary'] = {

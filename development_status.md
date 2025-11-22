@@ -1,6 +1,11 @@
 # Development Status
 
 ## 2025-11-22
+- **Feature**: Added support for multiple Walrasian Equilibria.
+  - **Backend**: Updated `api/core/economics.py` to use a logarithmic grid scan for price roots, detecting and returning multiple equilibria when they exist.
+  - **API**: Updated `api/index.py` response structure to include a list of equilibria in `walrasian_equilibrium.equilibria`.
+  - **Frontend**: Updated `components/EdgeworthBox.tsx` to visualize multiple equilibrium points and budget lines.
+  - **UI**: Updated `app/page.tsx` to display a list of all found equilibria with detailed price, allocation, and utility metrics.
 - **SEO Optimization**:
   - Enhanced `app/layout.tsx` with optimized metadata, keywords, and canonical URL.
   - Added structured data (JSON-LD) for `SoftwareApplication` and `WebApplication`.

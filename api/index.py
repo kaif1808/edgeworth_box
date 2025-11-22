@@ -67,24 +67,53 @@ def calculate_handler():
         }
         
         # 2. Walrasian Equilibrium
-        we_success, we_message, px, alloc_a = solve_walrasian_equilibrium(
+        we_success, we_message, equilibria = solve_walrasian_equilibrium(
             total_x, total_y, 
             type_a, params_a, 
             type_b, params_b, 
             endow_a, endow_b
         )
         
+        # Process equilibria list
+        # For backward compatibility, use the first equilibrium for top-level fields
+        if equilibria:
+            px, alloc_a = equilibria[0]
+        else:
+            px, alloc_a = 1.0, (total_x/2, total_y/2) # Defaults if failed
+
         alloc_b = (total_x - alloc_a[0], total_y - alloc_a[1])
         trade_a_net_x = alloc_a[0] - endow_a[0]
         trade_a_net_y = alloc_a[1] - endow_a[1]
         
-        # Calculate Utility and MRS at Equilibrium
+        # Calculate Utility and MRS at Equilibrium (First one)
         u_a_eq = utility_func(alloc_a[0], alloc_a[1], type_a, params_a)
         u_b_eq = utility_func(alloc_b[0], alloc_b[1], type_b, params_b)
         
         mrs_a_eq = calculate_mrs(alloc_a[0], alloc_a[1], type_a, params_a)
         mrs_b_eq = calculate_mrs(alloc_b[0], alloc_b[1], type_b, params_b)
         
+        # Structure full equilibria list for response
+        equilibria_data = []
+        for eq_px, eq_alloc_a in equilibria:
+            eq_alloc_b = (total_x - eq_alloc_a[0], total_y - eq_alloc_a[1])
+            eq_trade_a_x = eq_alloc_a[0] - endow_a[0]
+            eq_trade_a_y = eq_alloc_a[1] - endow_a[1]
+            eq_u_a = utility_func(eq_alloc_a[0], eq_alloc_a[1], type_a, params_a)
+            eq_u_b = utility_func(eq_alloc_b[0], eq_alloc_b[1], type_b, params_b)
+            eq_mrs_a = calculate_mrs(eq_alloc_a[0], eq_alloc_a[1], type_a, params_a)
+            eq_mrs_b = calculate_mrs(eq_alloc_b[0], eq_alloc_b[1], type_b, params_b)
+            
+            equilibria_data.append({
+                "price_ratio_px_py": sanitize_float(eq_px),
+                "allocation_a": { "x": sanitize_float(eq_alloc_a[0]), "y": sanitize_float(eq_alloc_a[1]) },
+                "allocation_b": { "x": sanitize_float(eq_alloc_b[0]), "y": sanitize_float(eq_alloc_b[1]) },
+                "trade_a": { "net_x": sanitize_float(eq_trade_a_x), "net_y": sanitize_float(eq_trade_a_y) },
+                "utility_a": sanitize_float(eq_u_a),
+                "utility_b": sanitize_float(eq_u_b),
+                "mrs_a": sanitize_float(eq_mrs_a),
+                "mrs_b": sanitize_float(eq_mrs_b)
+            })
+
         walrasian_equilibrium = {
             "exists": we_success,
             "message": we_message,
@@ -95,7 +124,8 @@ def calculate_handler():
             "utility_a": sanitize_float(u_a_eq),
             "utility_b": sanitize_float(u_b_eq),
             "mrs_a": sanitize_float(mrs_a_eq),
-            "mrs_b": sanitize_float(mrs_b_eq)
+            "mrs_b": sanitize_float(mrs_b_eq),
+            "equilibria": equilibria_data # New field containing all solutions
         }
 
         # 3. Contract Curve
@@ -128,9 +158,7 @@ def calculate_handler():
             type_a, params_a,
             type_b, params_b,
             endow_a, endow_b,
-            px, alloc_a,
-            u_a_eq, u_b_eq,
-            mrs_a_eq, mrs_b_eq,
+            equilibria,
             we_success=we_success,
             we_message=we_message,
             pareto_found=pareto_found,

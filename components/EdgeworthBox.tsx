@@ -12,6 +12,20 @@ interface Point {
   y: number;
 }
 
+interface DetailedEquilibrium {
+  price_ratio_px_py: number | string;
+  allocation_a: Point;
+  allocation_b: Point;
+  trade_a: {
+    net_x: number | string;
+    net_y: number | string;
+  };
+  utility_a?: number | string;
+  utility_b?: number | string;
+  mrs_a?: number | string;
+  mrs_b?: number | string;
+}
+
 interface SimulationData {
   initial_state: {
     utility_a: number | string;
@@ -32,6 +46,7 @@ interface SimulationData {
     utility_b?: number | string;
     mrs_a?: number | string;
     mrs_b?: number | string;
+    equilibria?: DetailedEquilibrium[];
   };
   contract_curve: {
     pareto_points: Point[];
@@ -325,42 +340,50 @@ export default function EdgeworthBox({ data, totalResources, endowmentA, visualS
         });
     }
 
-    // 4. Walrasian Equilibrium
+    // 4. Walrasian Equilibrium (Multiple)
     if (settings.show_we && walrasian_equilibrium.exists) {
-      plotTraces.push({
-        x: [walrasian_equilibrium.allocation_a.x],
-        y: [walrasian_equilibrium.allocation_a.y],
-        mode: 'markers',
-        name: 'Walrasian Equilibrium',
-        marker: { color: '#22c55e', size: 14, symbol: 'star' }, // Green
-        hovertemplate:
-          '<b>Equilibrium</b><br>' +
-          'XA: %{x:.2f}<br>' +
-          'YA: %{y:.2f}<br>' +
-          'Price Ratio (Px/Py): ' +
-          (typeof walrasian_equilibrium.price_ratio_px_py === 'number'
-            ? walrasian_equilibrium.price_ratio_px_py.toFixed(2)
-            : walrasian_equilibrium.price_ratio_px_py) +
-          '<br>' +
-          '<extra></extra>',
-      });
-      
-      // Budget Line (passing through endowment with slope -Px/Py)
-      // y - y0 = -px/py * (x - x0) => y = y0 - px/py * (x - x0)
-      const px_py = Number(walrasian_equilibrium.price_ratio_px_py);
-      if (!isNaN(px_py) && px_py !== Infinity) {
-          const yAt0 = endowmentA.y - px_py * (0 - endowmentA.x);
-          const yAtMax = endowmentA.y - px_py * (totalResources.x - endowmentA.x);
-          
-          plotTraces.push({
-              x: [0, totalResources.x],
-              y: [yAt0, yAtMax],
-              mode: 'lines',
-              name: 'Budget Line',
-              line: { color: darkMode ? '#9ca3af' : '#6b7280', width: 1, dash: 'dot' }, // Gray
-              hoverinfo: 'skip'
-          });
-      }
+        const equilibria = walrasian_equilibrium.equilibria || [walrasian_equilibrium];
+        
+        equilibria.forEach((eq, index) => {
+            // Use different colors for multiple equilibria if available? Or just same.
+            // Let's use same color but maybe add index to hover
+            const isMulti = equilibria.length > 1;
+            const name = isMulti ? `Equilibrium ${index + 1}` : 'Walrasian Equilibrium';
+            
+            plotTraces.push({
+                x: [eq.allocation_a.x],
+                y: [eq.allocation_a.y],
+                mode: 'markers',
+                name: name,
+                marker: { color: '#22c55e', size: 14, symbol: 'star' }, // Green
+                hovertemplate:
+                `<b>${name}</b><br>` +
+                'XA: %{x:.2f}<br>' +
+                'YA: %{y:.2f}<br>' +
+                'Price Ratio (Px/Py): ' +
+                (typeof eq.price_ratio_px_py === 'number'
+                    ? eq.price_ratio_px_py.toFixed(2)
+                    : eq.price_ratio_px_py) +
+                '<br>' +
+                '<extra></extra>',
+            });
+
+            // Budget Line (passing through endowment with slope -Px/Py)
+            const px_py = Number(eq.price_ratio_px_py);
+            if (!isNaN(px_py) && px_py !== Infinity) {
+                const yAt0 = endowmentA.y - px_py * (0 - endowmentA.x);
+                const yAtMax = endowmentA.y - px_py * (totalResources.x - endowmentA.x);
+                
+                plotTraces.push({
+                    x: [0, totalResources.x],
+                    y: [yAt0, yAtMax],
+                    mode: 'lines',
+                    name: isMulti ? `Budget Line ${index+1}` : 'Budget Line',
+                    line: { color: darkMode ? '#9ca3af' : '#6b7280', width: 1, dash: 'dot' }, // Gray
+                    hoverinfo: 'skip'
+                });
+            }
+        });
     }
 
     return plotTraces;

@@ -346,41 +346,58 @@ export default function Home() {
                     <AnalyticalWorkflow workings={result.workings} darkMode={darkMode} />
                   )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4">
                     {result.walrasian_equilibrium?.exists ? (
-                      <>
-                        <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
-                          <h3 className="font-semibold text-slate-700 dark:text-slate-300 mb-2">Equilibrium Prices</h3>
-                          <p className="text-slate-900 dark:text-slate-100">Price of X (px): <span className="font-mono">
-                            {typeof result.walrasian_equilibrium?.price_ratio_px_py === 'number' 
-                              ? result.walrasian_equilibrium.price_ratio_px_py.toFixed(4) 
-                              : result.walrasian_equilibrium?.price_ratio_px_py || 'N/A'}
-                          </span></p>
-                          <p className="text-slate-900 dark:text-slate-100">Price of Y (py): <span className="font-mono">1.0000</span> (Numeraire)</p>
-                        </div>
-                        <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
-                          <h3 className="font-semibold text-slate-700 dark:text-slate-300 mb-2">Allocation</h3>
-                          <p className="text-slate-900 dark:text-slate-100">Agent A: (<span className="font-mono">{result.walrasian_equilibrium?.allocation_a?.x?.toFixed(2)}</span>, <span className="font-mono">{result.walrasian_equilibrium?.allocation_a?.y?.toFixed(2)}</span>)</p>
-                          <p className="text-slate-900 dark:text-slate-100">Agent B: (<span className="font-mono">{result.walrasian_equilibrium?.allocation_b?.x?.toFixed(2)}</span>, <span className="font-mono">{result.walrasian_equilibrium?.allocation_b?.y?.toFixed(2)}</span>)</p>
-                        </div>
-                        <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 md:col-span-2">
-                          <h3 className="font-semibold text-slate-700 dark:text-slate-300 mb-2">Utility & MRS</h3>
-                          <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm text-slate-900 dark:text-slate-100">
-                            <div>
-                                <p className="font-medium text-slate-500 dark:text-slate-400">Agent A</p>
-                                <p>U: <span className="font-mono">{typeof result.walrasian_equilibrium?.utility_a === 'number' ? result.walrasian_equilibrium.utility_a.toFixed(2) : result.walrasian_equilibrium?.utility_a || 'N/A'}</span></p>
-                                <p>MRS: <span className="font-mono">{typeof result.walrasian_equilibrium?.mrs_a === 'number' ? result.walrasian_equilibrium.mrs_a.toFixed(2) : result.walrasian_equilibrium?.mrs_a || 'N/A'}</span></p>
-                            </div>
-                            <div>
-                                <p className="font-medium text-slate-500 dark:text-slate-400">Agent B</p>
-                                <p>U: <span className="font-mono">{typeof result.walrasian_equilibrium?.utility_b === 'number' ? result.walrasian_equilibrium.utility_b.toFixed(2) : result.walrasian_equilibrium?.utility_b || 'N/A'}</span></p>
-                                <p>MRS: <span className="font-mono">{typeof result.walrasian_equilibrium?.mrs_b === 'number' ? result.walrasian_equilibrium.mrs_b.toFixed(2) : result.walrasian_equilibrium?.mrs_b || 'N/A'}</span></p>
-                            </div>
-                          </div>
-                        </div>
-                      </>
+                      (result.walrasian_equilibrium.equilibria || [result.walrasian_equilibrium]).map((eq: any, idx: number) => (
+                         <div key={idx} className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-800/30 p-4 rounded-3xl border border-slate-200 dark:border-slate-700">
+                           <div className="md:col-span-2 flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-2 mb-2">
+                              <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 text-xs font-bold px-2 py-1 rounded">Equilibrium {idx + 1}</span>
+                              <span className="text-sm text-slate-500 dark:text-slate-400">Market clears at this price ratio.</span>
+                           </div>
+
+                           <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
+                              <h3 className="font-semibold text-slate-700 dark:text-slate-300 mb-2 text-sm uppercase tracking-wider">Prices</h3>
+                              <p className="text-slate-900 dark:text-slate-100">Price of X (px): <span className="font-mono font-bold text-blue-600 dark:text-blue-400">
+                                {typeof eq.price_ratio_px_py === 'number' 
+                                  ? eq.price_ratio_px_py.toFixed(4) 
+                                  : eq.price_ratio_px_py || 'N/A'}
+                              </span></p>
+                              <p className="text-slate-900 dark:text-slate-100">Price of Y (py): <span className="font-mono text-slate-500">1.0000</span></p>
+                           </div>
+
+                           <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
+                              <h3 className="font-semibold text-slate-700 dark:text-slate-300 mb-2 text-sm uppercase tracking-wider">Allocation</h3>
+                              <div className="space-y-1">
+                                <p className="text-slate-900 dark:text-slate-100 flex justify-between">
+                                  <span>Agent A:</span>
+                                  <span className="font-mono">({eq.allocation_a?.x?.toFixed(2)}, {eq.allocation_a?.y?.toFixed(2)})</span>
+                                </p>
+                                <p className="text-slate-900 dark:text-slate-100 flex justify-between">
+                                  <span>Agent B:</span>
+                                  <span className="font-mono">({eq.allocation_b?.x?.toFixed(2)}, {eq.allocation_b?.y?.toFixed(2)})</span>
+                                </p>
+                              </div>
+                           </div>
+
+                           <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm md:col-span-2">
+                              <h3 className="font-semibold text-slate-700 dark:text-slate-300 mb-2 text-sm uppercase tracking-wider">Utility & MRS</h3>
+                              <div className="grid grid-cols-2 gap-4 text-xs sm:text-sm text-slate-900 dark:text-slate-100">
+                                <div className="space-y-1">
+                                    <p className="font-bold text-slate-500 dark:text-slate-400">Agent A</p>
+                                    <p className="flex justify-between"><span>Utility:</span> <span className="font-mono">{typeof eq.utility_a === 'number' ? eq.utility_a.toFixed(2) : eq.utility_a || 'N/A'}</span></p>
+                                    <p className="flex justify-between"><span>MRS:</span> <span className="font-mono">{typeof eq.mrs_a === 'number' ? eq.mrs_a.toFixed(2) : eq.mrs_a || 'N/A'}</span></p>
+                                </div>
+                                <div className="space-y-1 border-l border-slate-100 dark:border-slate-700 pl-4">
+                                    <p className="font-bold text-slate-500 dark:text-slate-400">Agent B</p>
+                                    <p className="flex justify-between"><span>Utility:</span> <span className="font-mono">{typeof eq.utility_b === 'number' ? eq.utility_b.toFixed(2) : eq.utility_b || 'N/A'}</span></p>
+                                    <p className="flex justify-between"><span>MRS:</span> <span className="font-mono">{typeof eq.mrs_b === 'number' ? eq.mrs_b.toFixed(2) : eq.mrs_b || 'N/A'}</span></p>
+                                </div>
+                              </div>
+                           </div>
+                         </div>
+                      ))
                     ) : (
-                      <div className="md:col-span-2 bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-2xl border border-yellow-200 dark:border-yellow-800">
+                      <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-2xl border border-yellow-200 dark:border-yellow-800">
                         <h3 className="font-bold text-yellow-800 dark:text-yellow-300 mb-2 flex items-center gap-2">
                           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
                             <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
