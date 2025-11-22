@@ -1,4 +1,5 @@
 ---
 alwaysApply: true
 At the start of each task that requires an understanding of the app architecture, refer to architecture_design.md
+Don't automatically commit and push at the end of a plan.
 ---

@@ -26,6 +26,7 @@ export interface AgentParams {
   params: {
     alpha?: number;
     beta?: number;
+    rho?: number;
     a?: number;
     b?: number;
     formula?: string;
@@ -35,6 +36,7 @@ export interface AgentParams {
 const UTILITY_TYPES = [
   "Cobb-Douglas",
   "Non-standard Cobb-Douglas",
+  "CES",
   "Perfect Substitutes",
   "Perfect Complements (Min)",
   "Max Preferences (Convex)",
@@ -50,6 +52,11 @@ const PRESETS: Record<string, any> = {
         dim: [5, 10], endow: [3, 3],
         A: { type: "Quasi-Linear (Shifted Product)", params: { b: 3.0 } },
         B: { type: "Quasi-Linear (Shifted Product)", params: { b: 2.0 } }
+    },
+    "Textbook: Blair 15.B.6b": {
+        dim: [1, 1], endow: [1, 0],
+        A: { type: "Custom (Enter Formula)", params: { formula: "(x^(-2) + (12/37)^3 * y^(-2))^(-0.5)" } },
+        B: { type: "Custom (Enter Formula)", params: { formula: "((12/37)^3 * x^(-2) + y^(-2))^(-0.5)" } }
     },
     "CD vs Perf. Subs": {
         dim: [12, 12], endow: [6, 6],
@@ -216,7 +223,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           ) : (
             <>
               {/* Alpha/Beta are common to most */}
-              {["Cobb-Douglas", "Non-standard Cobb-Douglas", "Perfect Substitutes", "Perfect Complements (Min)", "Max Preferences (Convex)", "Mixed Cobb-Douglas"].includes(agent.type) && (
+              {["Cobb-Douglas", "Non-standard Cobb-Douglas", "Perfect Substitutes", "Perfect Complements (Min)", "Max Preferences (Convex)", "Mixed Cobb-Douglas", "CES"].includes(agent.type) && (
                 <>
                   <NumericControl
                     label="Alpha (α)"
@@ -234,6 +241,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       max={isNonStandardCD ? 10.0 : 1.0}
                       step={0.05}
                       onChange={(val) => handleChange('beta', Number(val.toFixed(3)))}
+                    />
+                  )}
+                  {agent.type === "CES" && (
+                    <NumericControl
+                      label="Rho (ρ)"
+                      value={agent.params.rho ?? 0.5}
+                      min={-5.0}
+                      max={0.99}
+                      step={0.1}
+                      onChange={(val) => handleChange('rho', Number(val.toFixed(2)))}
                     />
                   )}
                 </>

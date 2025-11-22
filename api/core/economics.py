@@ -113,6 +113,13 @@ def utility_func(x: Union[float, np.ndarray], y: Union[float, np.ndarray], u_typ
         return -1 * ((x - a)**2 + (y - b)**2)
     elif u_type == "Mixed Cobb-Douglas": 
         return x * (y ** alpha)
+    elif u_type == "CES":
+        rho = params.get('rho', 0.5)
+        if abs(rho) < 1e-3: # Approx Cobb-Douglas
+             return (x ** alpha) * (y ** beta)
+        # Handle negative bases safely if rho is integer, but generally x, y > 0
+        # Add small epsilon to avoid div by zero in power if rho < 0
+        return (alpha * (x**rho) + beta * (y**rho))**(1/rho)
     return 0.0
 
 def is_convex_preference(u_type: str) -> bool:
@@ -247,6 +254,10 @@ def get_demand(u_type: str, params: Dict[str, Any], px: float, py: float, income
     Returns:
         Tuple[float, float]: The optimal quantity of X and Y.
     """
+    # Helper to clamp results
+    def clamp_res(cx, cy):
+        return max(0.0, cx), max(0.0, cy)
+
     # 1. Analytical Solutions for Standard Types
     alpha = params.get('alpha', 0.5)
     beta = params.get('beta', 0.5)
@@ -261,7 +272,33 @@ def get_demand(u_type: str, params: Dict[str, Any], px: float, py: float, income
             
         x = (eff_alpha / (eff_alpha + eff_beta)) * income / px
         y = (eff_beta / (eff_alpha + eff_beta)) * income / py
-        return x, y
+        return clamp_res(x, y)
+
+    elif u_type == "CES":
+        rho = params.get('rho', 0.5)
+        # Edge case: Cobb-Douglas
+        if abs(rho) < 1e-3:
+             x = (alpha / (alpha + beta)) * income / px
+             y = (beta / (alpha + beta)) * income / py
+             return clamp_res(x, y)
+        
+        try:
+            r = rho
+            # Check for potential overflow in exponent
+            exponent = 1 / (1 - r)
+            if abs(exponent) > 100: 
+                raise OverflowError("Exponent too large")
+                
+            # Formula derived: x = I / (px + py * ( (px*beta)/(py*alpha) )**(1/(1-r)) )
+            term_base = (px * beta) / (py * alpha)
+            term = term_base ** exponent
+            
+            x = income / (px + py * term)
+            y = x * term
+            return clamp_res(x, y)
+        except (OverflowError, ZeroDivisionError, ValueError):
+            # Fallback to numerical
+            pass
 
     elif u_type == "Perfect Substitutes":
         # MRS = alpha/beta. If px/py < MRS, buy all X. If >, buy all Y.
@@ -269,12 +306,12 @@ def get_demand(u_type: str, params: Dict[str, Any], px: float, py: float, income
         price_ratio = px / py
         
         if price_ratio < mrs - 1e-6:
-            return income / px, 0.0
+            return clamp_res(income / px, 0.0)
         elif price_ratio > mrs + 1e-6:
-            return 0.0, income / py
+            return clamp_res(0.0, income / py)
         else:
             # Indifferent. Return a point on budget line. 
-            return income / px, 0.0 
+            return clamp_res(income / px, 0.0)
 
     elif u_type == "Perfect Complements (Min)":
         # Optimal path: alpha * x = beta * y => y = (alpha/beta) * x
@@ -282,7 +319,7 @@ def get_demand(u_type: str, params: Dict[str, Any], px: float, py: float, income
         # x * (px + py*alpha/beta) = I
         x = income / (px + py * (alpha / beta))
         y = (alpha / beta) * x
-        return x, y
+        return clamp_res(x, y)
 
     elif u_type == "Quasi-Linear (Shifted Product)":
         # U = (x+a)(y+b). Let X=x+a, Y=y+b. U=XY.
@@ -297,7 +334,7 @@ def get_demand(u_type: str, params: Dict[str, Any], px: float, py: float, income
         
         x = max(0, X - a)
         y = (income - px*x) / py
-        return x, y
+        return clamp_res(x, y)
 
     # 2. Numerical Solution for Others (Satiation, Custom, Max Prefs)
     # For Max Prefs (convex U), solution is at corners.
@@ -307,7 +344,7 @@ def get_demand(u_type: str, params: Dict[str, Any], px: float, py: float, income
         x2, y2 = 0.0, income / py
         u1 = utility_func(x1, y1, u_type, params)
         u2 = utility_func(x2, y2, u_type, params)
-        return (x1, y1) if u1 >= u2 else (x2, y2)
+        return clamp_res(x1, y1) if u1 >= u2 else clamp_res(x2, y2)
 
     # General Numerical Solver
     def obj(v): return -utility_func(v[0], v[1], u_type, params)
@@ -323,9 +360,9 @@ def get_demand(u_type: str, params: Dict[str, Any], px: float, py: float, income
     
     res = minimize(obj, [x0, y0], bounds=[b_x, b_y], constraints={'type':'ineq', 'fun':con_budget}, tol=1e-5)
     if res.success:
-        return res.x[0], res.x[1]
+        return clamp_res(res.x[0], res.x[1])
     
-    return x0, y0
+    return clamp_res(x0, y0)
 
 def solve_walrasian_equilibrium(total_x: float, total_y: float, type_A: str, params_A: Dict[str, Any], type_B: str, params_B: Dict[str, Any], endow_A: Tuple[float, float], endow_B: Tuple[float, float]) -> Tuple[bool, str, float, Tuple[float, float]]:
     """
@@ -503,7 +540,12 @@ def solve_contract_curve(total_x: float, total_y: float, type_A: str, params_A: 
     seen_keys = set()
 
     for px, py in pareto_candidates:
-        # Quick bounds check
+        # Strict bounds check (allowing for tiny numerical error but clamping)
+        # Also discard if significantly out of bounds (negative)
+        if px < -1e-5 or py < -1e-5 or px > total_x + 1e-5 or py > total_y + 1e-5:
+             continue
+        
+        # Clamp to exact bounds for safety
         px = max(0, min(total_x, px))
         py = max(0, min(total_y, py))
         
@@ -558,6 +600,9 @@ def get_utility_string(u_type: str, params: Dict[str, Any]) -> str:
         return f"-1((x - {a})^2 + (y - {b})^2)"
     elif u_type == "Mixed Cobb-Douglas": 
         return f"x y^{{{alpha}}}"
+    elif u_type == "CES":
+        rho = params.get('rho', 0.5)
+        return f"({alpha}x^{{{rho}}} + {beta}y^{{{rho}}})^{{1/{rho}}}"
     elif u_type == "Custom (Enter Formula)":
         return params.get('formula', 'x*y')
     return "u(x,y)"
