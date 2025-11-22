@@ -347,35 +347,51 @@ export default function Home() {
                   )}
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
-                      <h3 className="font-semibold text-slate-700 dark:text-slate-300 mb-2">Equilibrium Prices</h3>
-                      <p className="text-slate-900 dark:text-slate-100">Price of X (px): <span className="font-mono">
-                        {typeof result.walrasian_equilibrium?.price_ratio_px_py === 'number' 
-                          ? result.walrasian_equilibrium.price_ratio_px_py.toFixed(4) 
-                          : result.walrasian_equilibrium?.price_ratio_px_py || 'N/A'}
-                      </span></p>
-                      <p className="text-slate-900 dark:text-slate-100">Price of Y (py): <span className="font-mono">1.0000</span> (Numeraire)</p>
-                    </div>
-                    <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
-                      <h3 className="font-semibold text-slate-700 dark:text-slate-300 mb-2">Allocation</h3>
-                      <p className="text-slate-900 dark:text-slate-100">Agent A: (<span className="font-mono">{result.walrasian_equilibrium?.allocation_a?.x?.toFixed(2)}</span>, <span className="font-mono">{result.walrasian_equilibrium?.allocation_a?.y?.toFixed(2)}</span>)</p>
-                      <p className="text-slate-900 dark:text-slate-100">Agent B: (<span className="font-mono">{result.walrasian_equilibrium?.allocation_b?.x?.toFixed(2)}</span>, <span className="font-mono">{result.walrasian_equilibrium?.allocation_b?.y?.toFixed(2)}</span>)</p>
-                    </div>
-                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                      <h3 className="font-semibold text-slate-700 mb-2">Utility & MRS</h3>
-                      <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm">
-                        <div>
-                            <p className="font-medium text-slate-500">Agent A</p>
-                            <p>U: <span className="font-mono">{typeof result.walrasian_equilibrium?.utility_a === 'number' ? result.walrasian_equilibrium.utility_a.toFixed(2) : result.walrasian_equilibrium?.utility_a || 'N/A'}</span></p>
-                            <p>MRS: <span className="font-mono">{typeof result.walrasian_equilibrium?.mrs_a === 'number' ? result.walrasian_equilibrium.mrs_a.toFixed(2) : result.walrasian_equilibrium?.mrs_a || 'N/A'}</span></p>
+                    {result.walrasian_equilibrium?.exists ? (
+                      <>
+                        <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
+                          <h3 className="font-semibold text-slate-700 dark:text-slate-300 mb-2">Equilibrium Prices</h3>
+                          <p className="text-slate-900 dark:text-slate-100">Price of X (px): <span className="font-mono">
+                            {typeof result.walrasian_equilibrium?.price_ratio_px_py === 'number' 
+                              ? result.walrasian_equilibrium.price_ratio_px_py.toFixed(4) 
+                              : result.walrasian_equilibrium?.price_ratio_px_py || 'N/A'}
+                          </span></p>
+                          <p className="text-slate-900 dark:text-slate-100">Price of Y (py): <span className="font-mono">1.0000</span> (Numeraire)</p>
                         </div>
-                        <div>
-                            <p className="font-medium text-slate-500">Agent B</p>
-                            <p>U: <span className="font-mono">{typeof result.walrasian_equilibrium?.utility_b === 'number' ? result.walrasian_equilibrium.utility_b.toFixed(2) : result.walrasian_equilibrium?.utility_b || 'N/A'}</span></p>
-                            <p>MRS: <span className="font-mono">{typeof result.walrasian_equilibrium?.mrs_b === 'number' ? result.walrasian_equilibrium.mrs_b.toFixed(2) : result.walrasian_equilibrium?.mrs_b || 'N/A'}</span></p>
+                        <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
+                          <h3 className="font-semibold text-slate-700 dark:text-slate-300 mb-2">Allocation</h3>
+                          <p className="text-slate-900 dark:text-slate-100">Agent A: (<span className="font-mono">{result.walrasian_equilibrium?.allocation_a?.x?.toFixed(2)}</span>, <span className="font-mono">{result.walrasian_equilibrium?.allocation_a?.y?.toFixed(2)}</span>)</p>
+                          <p className="text-slate-900 dark:text-slate-100">Agent B: (<span className="font-mono">{result.walrasian_equilibrium?.allocation_b?.x?.toFixed(2)}</span>, <span className="font-mono">{result.walrasian_equilibrium?.allocation_b?.y?.toFixed(2)}</span>)</p>
                         </div>
+                        <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 md:col-span-2">
+                          <h3 className="font-semibold text-slate-700 dark:text-slate-300 mb-2">Utility & MRS</h3>
+                          <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm text-slate-900 dark:text-slate-100">
+                            <div>
+                                <p className="font-medium text-slate-500 dark:text-slate-400">Agent A</p>
+                                <p>U: <span className="font-mono">{typeof result.walrasian_equilibrium?.utility_a === 'number' ? result.walrasian_equilibrium.utility_a.toFixed(2) : result.walrasian_equilibrium?.utility_a || 'N/A'}</span></p>
+                                <p>MRS: <span className="font-mono">{typeof result.walrasian_equilibrium?.mrs_a === 'number' ? result.walrasian_equilibrium.mrs_a.toFixed(2) : result.walrasian_equilibrium?.mrs_a || 'N/A'}</span></p>
+                            </div>
+                            <div>
+                                <p className="font-medium text-slate-500 dark:text-slate-400">Agent B</p>
+                                <p>U: <span className="font-mono">{typeof result.walrasian_equilibrium?.utility_b === 'number' ? result.walrasian_equilibrium.utility_b.toFixed(2) : result.walrasian_equilibrium?.utility_b || 'N/A'}</span></p>
+                                <p>MRS: <span className="font-mono">{typeof result.walrasian_equilibrium?.mrs_b === 'number' ? result.walrasian_equilibrium.mrs_b.toFixed(2) : result.walrasian_equilibrium?.mrs_b || 'N/A'}</span></p>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="md:col-span-2 bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-2xl border border-yellow-200 dark:border-yellow-800">
+                        <h3 className="font-bold text-yellow-800 dark:text-yellow-300 mb-2 flex items-center gap-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                            <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                          </svg>
+                          Walrasian Equilibrium Not Found
+                        </h3>
+                        <p className="text-yellow-900 dark:text-yellow-100 text-sm">
+                          {result.walrasian_equilibrium?.message || "The solver failed to find a market-clearing price. This can happen with non-convex preferences or extreme parameters."}
+                        </p>
                       </div>
-                    </div>
+                    )}
                   </div>
                   
                   {result.analysis && (

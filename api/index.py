@@ -67,7 +67,7 @@ def calculate_handler():
         }
         
         # 2. Walrasian Equilibrium
-        px, alloc_a = solve_walrasian_equilibrium(
+        we_success, we_message, px, alloc_a = solve_walrasian_equilibrium(
             total_x, total_y, 
             type_a, params_a, 
             type_b, params_b, 
@@ -86,7 +86,8 @@ def calculate_handler():
         mrs_b_eq = calculate_mrs(alloc_b[0], alloc_b[1], type_b, params_b)
         
         walrasian_equilibrium = {
-            "exists": True,
+            "exists": we_success,
+            "message": we_message,
             "price_ratio_px_py": sanitize_float(px),
             "allocation_a": { "x": sanitize_float(alloc_a[0]), "y": sanitize_float(alloc_a[1]) },
             "allocation_b": { "x": sanitize_float(alloc_b[0]), "y": sanitize_float(alloc_b[1]) },
@@ -97,17 +98,6 @@ def calculate_handler():
             "mrs_b": sanitize_float(mrs_b_eq)
         }
 
-        # 2.5 Workings
-        workings = generate_workings(
-            total_x, total_y,
-            type_a, params_a,
-            type_b, params_b,
-            endow_a, endow_b,
-            px, alloc_a,
-            u_a_eq, u_b_eq,
-            mrs_a_eq, mrs_b_eq
-        )
-        
         # 3. Contract Curve
         # Determine range for B's utility
         # Min: B has nothing (A has everything) -> utility at (0,0)
@@ -127,6 +117,25 @@ def calculate_handler():
             "pareto_points": [{"x": sanitize_float(x), "y": sanitize_float(y)} for x, y in zip(pareto_x, pareto_y)],
             "core_points": [{"x": sanitize_float(x), "y": sanitize_float(y)} for x, y in zip(core_x, core_y)]
         }
+
+        # Check for empty sets
+        pareto_found = len(pareto_x) > 0
+        core_found = len(core_x) > 0
+
+        # 2.5 Workings (Moved after Contract Curve to have access to pareto_found)
+        workings = generate_workings(
+            total_x, total_y,
+            type_a, params_a,
+            type_b, params_b,
+            endow_a, endow_b,
+            px, alloc_a,
+            u_a_eq, u_b_eq,
+            mrs_a_eq, mrs_b_eq,
+            we_success=we_success,
+            we_message=we_message,
+            pareto_found=pareto_found,
+            core_found=core_found
+        )
         
         # 4. Grid Generation (if requested)
         include_grid = data.get('include_grid', True) 

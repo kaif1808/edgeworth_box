@@ -427,7 +427,23 @@ export default function EdgeworthBox({ data, totalResources, endowmentA, visualS
         font: {
             color: darkMode ? '#94a3b8' : '#666'
         }
-      }
+      },
+      ...(walrasian_equilibrium.exists ? [] : [{
+        x: totalResources.x / 2,
+        y: totalResources.y / 2,
+        xref: 'x' as const,
+        yref: 'y' as const,
+        text: 'No Walrasian Equilibrium',
+        showarrow: false,
+        font: {
+            color: darkMode ? '#fca5a5' : '#dc2626',
+            size: 14
+        },
+        bgcolor: darkMode ? 'rgba(127, 29, 29, 0.8)' : 'rgba(254, 226, 226, 0.8)',
+        bordercolor: darkMode ? '#ef4444' : '#b91c1c',
+        borderwidth: 1,
+        borderpad: 4
+      }])
     ],
     shapes: [
         {

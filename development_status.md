@@ -1,5 +1,14 @@
 # Development Status
 
+## 2025-11-22
+- **Feature**: Integrated comprehensive error handling and explanations for when equilibrium, Pareto sets, or Core cannot be found.
+  - **Backend**: Updated `api/core/economics.py` to detect solver failures (e.g., non-convex preferences) and return specific failure messages.
+  - **Frontend**: Updated `app/page.tsx` to conditionally display a "Status Card" with failure reasons instead of partial results.
+  - **Visualization**: Added "No Walrasian Equilibrium" annotation to the Edgeworth Box plot when appropriate.
+- **Fix**: Resolved "partial rendering" of Pareto efficient points in the Edgeworth Box.
+  - Tuned numerical solver in `api/core/economics.py`: increased optimization steps to 500 and tightened `minimize` tolerance to `1e-6`.
+  - Relaxed Pareto verification tolerance slightly (`1e-6`) to account for optimizer noise, eliminating gaps in the contract curve visualization.
+
 ## 2025-11-21
 - **Feature**: Updated `EdgeworthBox` component to dynamically calculate plot height based on resource aspect ratio, ensuring a strictly proportional box visualization.
 - **Refactor**: Modified `app/page.tsx` to remove fixed height constraints on the chart container, allowing it to adapt to the dynamic plot size.

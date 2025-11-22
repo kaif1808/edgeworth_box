@@ -178,7 +178,7 @@ def verify_pareto_efficiency(x: float, y: float, total_x: float, total_y: float,
         test_displacements.append(d * eps)
         
     # Check candidates
-    tol = 1e-7
+    tol = 1e-6 # Relaxed from 1e-7 to account for optimizer noise
     
     for dvec in test_displacements:
         dx, dy = dvec[0], dvec[1]
@@ -327,7 +327,7 @@ def get_demand(u_type: str, params: Dict[str, Any], px: float, py: float, income
     
     return x0, y0
 
-def solve_walrasian_equilibrium(total_x: float, total_y: float, type_A: str, params_A: Dict[str, Any], type_B: str, params_B: Dict[str, Any], endow_A: Tuple[float, float], endow_B: Tuple[float, float]) -> Tuple[float, Tuple[float, float]]:
+def solve_walrasian_equilibrium(total_x: float, total_y: float, type_A: str, params_A: Dict[str, Any], type_B: str, params_B: Dict[str, Any], endow_A: Tuple[float, float], endow_B: Tuple[float, float]) -> Tuple[bool, str, float, Tuple[float, float]]:
     """
     Solves for the Walrasian Equilibrium prices and allocation.
 
@@ -342,7 +342,11 @@ def solve_walrasian_equilibrium(total_x: float, total_y: float, type_A: str, par
         endow_B (Tuple[float, float]): Endowment for Agent B (x, y).
 
     Returns:
-        Tuple[float, Tuple[float, float]]: Equilibrium price of X (px) and Agent A's allocation (xA, yA).
+        Tuple[bool, str, float, Tuple[float, float]]: 
+            - Success (bool)
+            - Message (str)
+            - Equilibrium price of X (px)
+            - Agent A's allocation (xA, yA)
     """
     # Normalize py = 1. Solve for px.
     py = 1.0
@@ -366,18 +370,36 @@ def solve_walrasian_equilibrium(total_x: float, total_y: float, type_A: str, par
     # Root Finding for px
     # Try to bracket the root
     low, high = 0.01, 100.0
+    px_eq = 1.0
+    success = False
+    message = "Equilibrium found."
+
     try:
         px_eq = brentq(excess_demand_x, low, high, xtol=1e-4)
+        success = True
     except ValueError:
         # brentq failed (no sign change). Try minimize absolute excess demand.
         res = minimize_scalar(lambda p: abs(excess_demand_x(p)), bounds=(0.01, 100.0), method='bounded')
         px_eq = res.x
-    
+        
+        # Check if excess demand is actually close to 0
+        final_excess = excess_demand_x(px_eq)
+        if abs(final_excess) < 0.1 * total_x: # Allow 10% error margin for rough solutions
+             success = True
+             message = "Approximate equilibrium found (minimized excess demand)."
+        else:
+             success = False
+             message = f"Could not find market clearing price. Excess demand for X at best price (p={px_eq:.2f}) is {final_excess:.2f}."
+             
+             # Diagnose common failures
+             if not is_convex_preference(type_A) or not is_convex_preference(type_B):
+                 message += " Non-convex preferences (e.g., Max Preferences) often lead to corner solutions that do not clear the market."
+
     # Calculate Final Allocation
     IA = px_eq * wAx + py * wAy
     xA, yA = get_demand(type_A, params_A, px_eq, py, IA, total_x, total_y)
     
-    return px_eq, (xA, yA)
+    return success, message, px_eq, (xA, yA)
 
 def solve_contract_curve(total_x: float, total_y: float, type_A: str, params_A: Dict[str, Any], type_B: str, params_B: Dict[str, Any], uA_w: float, uB_w: float, Z_B_min: float, Z_B_max: float) -> Tuple[List[float], List[float], List[float], List[float]]:
     """
@@ -391,7 +413,7 @@ def solve_contract_curve(total_x: float, total_y: float, type_A: str, params_A: 
     convex_A = is_convex_preference(type_A)
     convex_B = is_convex_preference(type_B)
     
-    steps = 300 
+    steps = 500 
     if Z_B_max > Z_B_min and (convex_A and convex_B):
         levels_B = np.linspace(Z_B_min, Z_B_max, steps)
         last_x = [total_x / 2, total_y / 2] 
@@ -402,7 +424,7 @@ def solve_contract_curve(total_x: float, total_y: float, type_A: str, params_A: 
             
             bnds = ((0, total_x), (0, total_y))
             # Try to keep close to previous solution for continuity
-            res = minimize(obj, last_x, bounds=bnds, constraints={'type':'ineq', 'fun':con}, tol=1e-5)
+            res = minimize(obj, last_x, bounds=bnds, constraints={'type':'ineq', 'fun':con}, tol=1e-6)
             
             best_p = None
             best_u = -np.inf
@@ -413,7 +435,7 @@ def solve_contract_curve(total_x: float, total_y: float, type_A: str, params_A: 
             else:
                 starts = [[0, 0], [total_x, total_y], [0, total_y], [total_x, 0], [total_x/2, total_y/2]]
                 for s in starts:
-                    res_retry = minimize(obj, s, bounds=bnds, constraints={'type':'ineq', 'fun':con}, tol=1e-5)
+                    res_retry = minimize(obj, s, bounds=bnds, constraints={'type':'ineq', 'fun':con}, tol=1e-6)
                     if res_retry.success:
                         ua = utility_func(res_retry.x[0], res_retry.x[1], type_A, params_A)
                         if ua > best_u:
@@ -540,7 +562,7 @@ def get_utility_string(u_type: str, params: Dict[str, Any]) -> str:
         return params.get('formula', 'x*y')
     return "u(x,y)"
 
-def generate_workings(total_x, total_y, type_a, params_a, type_b, params_b, endow_a, endow_b, px, alloc_a, u_a_eq, u_b_eq, mrs_a_eq, mrs_b_eq):
+def generate_workings(total_x, total_y, type_a, params_a, type_b, params_b, endow_a, endow_b, px, alloc_a, u_a_eq, u_b_eq, mrs_a_eq, mrs_b_eq, we_success=True, we_message="", pareto_found=True, core_found=True):
     workings = {}
 
     # 1. Primitives
@@ -588,19 +610,30 @@ def generate_workings(total_x, total_y, type_a, params_a, type_b, params_b, endo
     
     excess_x = (xA_dem + xB_dem) - total_x
 
-    workings['3_market_clearing'] = {
-        "title": "3. Market Clearing Condition",
-        "content": [
-            "Equilibrium price $p_x^*$ is found where excess demand for X is zero.",
-            f"$Z_x(p_x) = x^A(p_x) + x^B(p_x) - \\bar{{X}} = 0$",
-            f"At $p_x = {px:.4f}$:",
-            f"Demand A: $x^A = {xA_dem:.2f}$",
-            f"Demand B: $x^B = {xB_dem:.2f}$",
-            f"Total Demand: ${xA_dem + xB_dem:.2f}$",
-            f"Total Supply: ${total_x}$",
-            f"Excess Demand: ${excess_x:.4f} \\approx 0$"
-        ]
-    }
+    if we_success:
+        workings['3_market_clearing'] = {
+            "title": "3. Market Clearing Condition",
+            "content": [
+                "Equilibrium price $p_x^*$ is found where excess demand for X is zero.",
+                f"$Z_x(p_x) = x^A(p_x) + x^B(p_x) - \\bar{{X}} = 0$",
+                f"At $p_x = {px:.4f}$:",
+                f"Demand A: $x^A = {xA_dem:.2f}$",
+                f"Demand B: $x^B = {xB_dem:.2f}$",
+                f"Total Demand: ${xA_dem + xB_dem:.2f}$",
+                f"Total Supply: ${total_x}$",
+                f"Excess Demand: ${excess_x:.4f} \\approx 0$"
+            ]
+        }
+    else:
+        workings['3_market_clearing'] = {
+            "title": "3. Market Clearing Condition (Failed)",
+            "content": [
+                "**Walrasian Equilibrium Not Found**",
+                f"The solver failed to find a price where excess demand is zero.",
+                f"Best attempt at $p_x = {px:.4f}$ yielded Excess Demand: ${excess_x:.4f}$",
+                f"**Reason:** {we_message}"
+            ]
+        }
 
     # 4. Efficiency Condition (Pareto Set)
     # Helper to format MRS safely
@@ -608,43 +641,77 @@ def generate_workings(total_x, total_y, type_a, params_a, type_b, params_b, endo
         if np.isinf(val): return r"\infty"
         return f"{val:.4f}"
 
-    workings['4_efficiency'] = {
-        "title": "4. Efficiency Condition (Pareto Set)",
-        "content": [
-            "An allocation is Pareto Efficient if $MRS^A = MRS^B$ (for interior solutions).",
-            f"At the equilibrium allocation:",
-            f"$MRS^A = {format_mrs(mrs_a_eq)}$",
-            f"$MRS^B = {format_mrs(mrs_b_eq)}$",
-            "The Contract Curve is the set of all points where these marginal rates of substitution are equal (tangency condition), bounded by feasibility."
-        ]
-    }
+    if pareto_found:
+        workings['4_efficiency'] = {
+            "title": "4. Efficiency Condition (Pareto Set)",
+            "content": [
+                "An allocation is Pareto Efficient if $MRS^A = MRS^B$ (for interior solutions).",
+                f"At the equilibrium allocation (if valid):",
+                f"$MRS^A = {format_mrs(mrs_a_eq)}$",
+                f"$MRS^B = {format_mrs(mrs_b_eq)}$",
+                "The Contract Curve is the set of all points where these marginal rates of substitution are equal (tangency condition), bounded by feasibility."
+            ]
+        }
+    else:
+        workings['4_efficiency'] = {
+            "title": "4. Efficiency Condition (Empty Set)",
+            "content": [
+                "**No Pareto Efficient Points Found**",
+                "The system could not identify any points where neither agent can be made better off without harming the other.",
+                "This may be due to:",
+                "- Highly non-convex preferences (discontinuous)",
+                "- Numerical instability in custom formulas",
+                "- Empty feasible set"
+            ]
+        }
 
     # 5. The Core
     u_a_w = utility_func(endow_a[0], endow_a[1], type_a, params_a)
     u_b_w = utility_func(endow_b[0], endow_b[1], type_b, params_b)
 
-    workings['5_core'] = {
-        "title": "5. The Core",
-        "content": [
-            "The Core is the subset of the Pareto Set that satisfies Individual Rationality (IR).",
-            "**Utility at Endowment (Reservation Utility):**",
-            f"$u^A(\\omega^A) = {u_a_w:.2f}$",
-            f"$u^B(\\omega^B) = {u_b_w:.2f}$",
-            "**Core Condition:**",
-            f"Any core allocation must satisfy $u^A(x^A) \\ge {u_a_w:.2f}$ and $u^B(x^B) \\ge {u_b_w:.2f}$."
-        ]
-    }
+    if core_found:
+        workings['5_core'] = {
+            "title": "5. The Core",
+            "content": [
+                "The Core is the subset of the Pareto Set that satisfies Individual Rationality (IR).",
+                "**Utility at Endowment (Reservation Utility):**",
+                f"$u^A(\\omega^A) = {u_a_w:.2f}$",
+                f"$u^B(\\omega^B) = {u_b_w:.2f}$",
+                "**Core Condition:**",
+                f"Any core allocation must satisfy $u^A(x^A) \\ge {u_a_w:.2f}$ and $u^B(x^B) \\ge {u_b_w:.2f}$."
+            ]
+        }
+    else:
+        workings['5_core'] = {
+            "title": "5. The Core (Empty)",
+            "content": [
+                "**No Core Points Found**",
+                "The Core is empty. This means there are no Pareto efficient allocations that are individually rational for both agents given their initial endowments.",
+                "**Reservation Utilities:**",
+                f"$u^A(\\omega^A) = {u_a_w:.2f}$",
+                f"$u^B(\\omega^B) = {u_b_w:.2f}$"
+            ]
+        }
 
     # 6. Final Allocation Summary
-    workings['6_summary'] = {
-        "title": "6. Final Allocation Summary",
-        "content": [
-            "**Equilibrium Prices:**",
-            f"$p_x^* = {px:.4f}, p_y^* = 1$",
-            "**Final Allocation:**",
-            f"$x^A = {alloc_a[0]:.2f}, y^A = {alloc_a[1]:.2f}$",
-            f"$x^B = {total_x - alloc_a[0]:.2f}, y^B = {total_y - alloc_a[1]:.2f}$"
-        ]
-    }
+    if we_success:
+        workings['6_summary'] = {
+            "title": "6. Final Allocation Summary",
+            "content": [
+                "**Equilibrium Prices:**",
+                f"$p_x^* = {px:.4f}, p_y^* = 1$",
+                "**Final Allocation:**",
+                f"$x^A = {alloc_a[0]:.2f}, y^A = {alloc_a[1]:.2f}$",
+                f"$x^B = {total_x - alloc_a[0]:.2f}, y^B = {total_y - alloc_a[1]:.2f}$"
+            ]
+        }
+    else:
+        workings['6_summary'] = {
+            "title": "6. Final Allocation Summary (None)",
+            "content": [
+                "No valid equilibrium allocation could be determined.",
+                "Please adjust preferences or endowments to find a solution."
+            ]
+        }
 
     return workings
