@@ -19,6 +19,7 @@
 - **Fix**: Resolved "partial rendering" of Pareto efficient points in the Edgeworth Box.
   - Tuned numerical solver in `api/core/economics.py`: increased optimization steps to 500 and tightened `minimize` tolerance to `1e-6`.
   - Relaxed Pareto verification tolerance slightly (`1e-6`) to account for optimizer noise, eliminating gaps in the contract curve visualization.
+- **Docs**: Added a comprehensive `README.md` covering architecture, setup, testing, and deployment guidance for new contributors.
 
 ## 2025-11-21
 - **Feature**: Updated `EdgeworthBox` component to dynamically calculate plot height based on resource aspect ratio, ensuring a strictly proportional box visualization.
