@@ -285,27 +285,60 @@ def calculate_mrs(x: float, y: float, u_type: str, params: Dict[str, Any]) -> fl
         params (Dict[str, Any]): Dictionary of parameters for the utility function.
 
     Returns:
-        float: The MRS at the point (x, y). Returns np.inf if MRS is infinite.
+        float: The MRS at the point (x, y). Returns np.inf, -np.inf, or np.nan appropriately.
     """
+    # Ensure non-negative inputs for utility calculation
+    x = max(0.0, x)
+    y = max(0.0, y)
+    
     # Try Symbolic Calculation first
     if xcas_engine and xcas_engine.is_available():
         formula = get_computational_formula(u_type, params)
         # Skip Min/Max/Custom if complex
-        if "min" not in formula and "max" not in formula:
+        if "min" not in formula.lower() and "max" not in formula.lower():
             mrs = xcas_engine.calculate_mrs(formula, x, y)
             if mrs is not None:
-                return mrs
+                # Validate result: only reject NaN as definitely invalid
+                # Infinite MRS can be legitimate (e.g., when du/dy = 0), so accept it
+                if np.isnan(mrs):
+                    # Invalid result, fall through to numerical
+                    pass
+                else:
+                    return mrs
 
     # Fallback to Numerical
     h = 1e-5
-    u0 = utility_func(x, y, u_type, params)
-    ux = (utility_func(x + h, y, u_type, params) - u0) / h
-    uy = (utility_func(x, y + h, u_type, params) - u0) / h
+    # Use small epsilon to avoid division issues at boundaries
+    x_safe = max(h, x)
+    y_safe = max(h, y)
     
+    u0 = utility_func(x_safe, y_safe, u_type, params)
+    ux = (utility_func(x_safe + h, y_safe, u_type, params) - u0) / h
+    uy = (utility_func(x_safe, y_safe + h, u_type, params) - u0) / h
+    
+    # Handle small gradients (flat regions or kinks)
     if abs(uy) < 1e-9:
-        if abs(ux) < 1e-9: return 0.0
-        return np.inf * np.sign(ux)
-    return ux / uy
+        if abs(ux) < 1e-9: 
+            # Check if it's a kink like Min(x,y) where forward difference yields 0
+            # Try backward difference to see if it's 0 there too
+            if x > h and y > h:
+                ux_b = (u0 - utility_func(x_safe - h, y_safe, u_type, params)) / h
+                uy_b = (u0 - utility_func(x_safe, y_safe - h, u_type, params)) / h
+                if abs(ux_b) > 1e-9 or abs(uy_b) > 1e-9:
+                    # Kink detected. MRS is undefined.
+                    return np.nan
+            return 0.0  # Truly flat?
+        # uy is near zero, ux is not -> infinite MRS
+        return np.inf * np.sign(ux) if ux != 0 else np.nan
+    
+    # Normal case: both derivatives are non-zero
+    result = ux / uy
+    
+    # Validate result
+    if np.isnan(result) or (np.isinf(result) and abs(uy) > 1e-9):
+        return np.nan
+        
+    return result
 
 def get_demand(u_type: str, params: Dict[str, Any], px: float, py: float, income: float, total_x_limit: Optional[float] = None, total_y_limit: Optional[float] = None) -> Tuple[float, float]:
     """
@@ -314,18 +347,36 @@ def get_demand(u_type: str, params: Dict[str, Any], px: float, py: float, income
     Args:
         u_type (str): The type of utility function.
         params (Dict[str, Any]): Dictionary of parameters for the utility function.
-        px (float): Price of good X.
-        py (float): Price of good Y.
-        income (float): Total income.
+        px (float): Price of good X (must be > 0).
+        py (float): Price of good Y (must be > 0).
+        income (float): Total income (must be >= 0).
         total_x_limit (Optional[float]): Maximum available quantity of good X.
         total_y_limit (Optional[float]): Maximum available quantity of good Y.
 
     Returns:
-        Tuple[float, float]: The optimal quantity of X and Y.
+        Tuple[float, float]: The optimal quantity of X and Y (both >= 0).
     """
-    # Helper to clamp results
+    # Validate inputs
+    px = max(1e-9, px)  # Ensure positive price
+    py = max(1e-9, py)  # Ensure positive price
+    income = max(0.0, income)  # Ensure non-negative income
+    
+    # Helper to clamp results and ensure non-negative
     def clamp_res(cx, cy):
-        return max(0.0, cx), max(0.0, cy)
+        cx = max(0.0, cx)
+        cy = max(0.0, cy)
+        # Ensure budget constraint is satisfied
+        if px * cx + py * cy > income + 1e-6:  # Allow small numerical error
+            # If over budget, scale down proportionally
+            scale = income / (px * cx + py * cy) if (px * cx + py * cy) > 0 else 0
+            cx = cx * scale
+            cy = cy * scale
+        # Ensure within limits if specified
+        if total_x_limit is not None:
+            cx = min(cx, total_x_limit)
+        if total_y_limit is not None:
+            cy = min(cy, total_y_limit)
+        return cx, cy
 
     # 1. Analytical Solutions for Standard Types
     alpha = params.get('alpha', 0.5)
@@ -399,10 +450,15 @@ def get_demand(u_type: str, params: Dict[str, Any], px: float, py: float, income
         I_eff = income + px*a + py*b
         
         X = I_eff / (2 * px)
-        # Y = I_eff / (2 * py) # Unused variable
         
-        x = max(0, X - a)
-        y = (income - px*x) / py
+        x = max(0.0, X - a)
+        y = (income - px * x) / py
+        
+        # Check if y became negative
+        if y < 0:
+            y = 0.0
+            x = income / px
+            
         return clamp_res(x, y)
 
     # 2. Numerical Solution for Others (Satiation, Custom, Max Prefs)
@@ -427,9 +483,42 @@ def get_demand(u_type: str, params: Dict[str, Any], px: float, py: float, income
     x0 = income / (2 * px)
     y0 = income / (2 * py)
     
+    # 1. Interior Optimization
     res = minimize(obj, [x0, y0], bounds=[b_x, b_y], constraints={'type':'ineq', 'fun':con_budget}, tol=1e-5)
+    
+    # 2. Corner Checks (Crucial for non-convex or edge cases)
+    # Corner X (spend all on X)
+    cx_x = income / px
+    if total_x_limit: cx_x = min(cx_x, total_x_limit)
+    cx_y = (income - px*cx_x) / py
+    
+    # Corner Y (spend all on Y)
+    cy_y = income / py
+    if total_y_limit: cy_y = min(cy_y, total_y_limit)
+    cy_x = (income - py*cy_y) / px
+    
+    corners = [(cx_x, cx_y), (cy_x, cy_y)]
+    best_res = None
+    max_u = -np.inf
+    
+    # Evaluate Interior Result
     if res.success:
-        return clamp_res(res.x[0], res.x[1])
+        ux = res.x[0]
+        uy = res.x[1]
+        u_val = utility_func(ux, uy, u_type, params)
+        best_res = (ux, uy)
+        max_u = u_val
+        
+    # Evaluate Corners
+    for (cx, cy) in corners:
+        if cx < 0 or cy < 0: continue # Should not happen with clamp but safe check
+        u_val = utility_func(cx, cy, u_type, params)
+        if u_val > max_u + 1e-5: # Strict improvement tolerance
+            max_u = u_val
+            best_res = (cx, cy)
+            
+    if best_res:
+        return clamp_res(best_res[0], best_res[1])
     
     return clamp_res(x0, y0)
 
@@ -460,15 +549,21 @@ def solve_walrasian_equilibrium(total_x: float, total_y: float, type_A: str, par
     wBx, wBy = endow_B
     
     def excess_demand_x(px):
-        if px <= 0: return 1e9 # Penalty for negative price
+        if px <= 0: return 1e9  # Penalty for negative price
         
-        # Income
-        IA = px * wAx + py * wAy
-        IB = px * wBx + py * wBy
+        # Income (ensure non-negative)
+        IA = max(0.0, px * wAx + py * wAy)
+        IB = max(0.0, px * wBx + py * wBy)
         
-        # Demand
+        # Demand (already clamped to non-negative in get_demand)
         xA, yA = get_demand(type_A, params_A, px, py, IA, total_x, total_y)
         xB, yB = get_demand(type_B, params_B, px, py, IB, total_x, total_y)
+        
+        # Ensure allocations are non-negative and within bounds
+        xA = max(0.0, min(total_x, xA))
+        yA = max(0.0, min(total_y, yA))
+        xB = max(0.0, min(total_x, xB))
+        yB = max(0.0, min(total_y, yB))
         
         return (xA + xB) - total_x
 
@@ -511,9 +606,34 @@ def solve_walrasian_equilibrium(total_x: float, total_y: float, type_A: str, par
         message = f"Found {len(roots)} equilibrium price(s)."
         
         for px_eq in roots:
+            # Ensure price is positive
+            if px_eq <= 0:
+                continue
+                
             # Calculate Final Allocation for each price
-            IA = px_eq * wAx + py * wAy
+            IA = max(0.0, px_eq * wAx + py * wAy)
+            IB = max(0.0, px_eq * wBx + py * wBy)
+            
             xA, yA = get_demand(type_A, params_A, px_eq, py, IA, total_x, total_y)
+            xB, yB = get_demand(type_B, params_B, px_eq, py, IB, total_x, total_y)
+            
+            # Ensure allocations are non-negative and feasible
+            xA = max(0.0, min(total_x, xA))
+            yA = max(0.0, min(total_y, yA))
+            xB = max(0.0, min(total_x, xB))
+            yB = max(0.0, min(total_y, yB))
+            
+            # Verify feasibility: xA + xB <= total_x, yA + yB <= total_y
+            # If not feasible, scale down proportionally
+            if xA + xB > total_x + 1e-6:
+                scale_x = total_x / (xA + xB) if (xA + xB) > 0 else 0
+                xA = xA * scale_x
+                xB = xB * scale_x
+            if yA + yB > total_y + 1e-6:
+                scale_y = total_y / (yA + yB) if (yA + yB) > 0 else 0
+                yA = yA * scale_y
+                yB = yB * scale_y
+            
             equilibria.append((px_eq, (xA, yA)))
             
     else:
@@ -523,11 +643,34 @@ def solve_walrasian_equilibrium(total_x: float, total_y: float, type_A: str, par
         
         final_excess = excess_demand_x(px_eq)
         if abs(final_excess) < 0.1 * total_x: 
-             success = True
-             message = "Approximate equilibrium found (minimized excess demand)."
-             IA = px_eq * wAx + py * wAy
-             xA, yA = get_demand(type_A, params_A, px_eq, py, IA, total_x, total_y)
-             equilibria.append((px_eq, (xA, yA)))
+             # Ensure price is positive before setting success
+             if px_eq > 0:
+                 IA = max(0.0, px_eq * wAx + py * wAy)
+                 IB = max(0.0, px_eq * wBx + py * wBy)
+                 
+                 xA, yA = get_demand(type_A, params_A, px_eq, py, IA, total_x, total_y)
+                 xB, yB = get_demand(type_B, params_B, px_eq, py, IB, total_x, total_y)
+                 
+                 # Ensure allocations are non-negative and feasible
+                 xA = max(0.0, min(total_x, xA))
+                 yA = max(0.0, min(total_y, yA))
+                 xB = max(0.0, min(total_x, xB))
+                 yB = max(0.0, min(total_y, yB))
+                 
+                 # Verify feasibility
+                 if xA + xB > total_x + 1e-6:
+                     scale_x = total_x / (xA + xB) if (xA + xB) > 0 else 0
+                     xA = xA * scale_x
+                     xB = xB * scale_x
+                 if yA + yB > total_y + 1e-6:
+                     scale_y = total_y / (yA + yB) if (yA + yB) > 0 else 0
+                     yA = yA * scale_y
+                     yB = yB * scale_y
+                 
+                 equilibria.append((px_eq, (xA, yA)))
+                 # Only set success after confirming equilibrium was appended
+                 success = True
+                 message = "Approximate equilibrium found (minimized excess demand)."
         else:
              success = False
              message = f"Could not find market clearing price. Excess demand for X at best price (p={px_eq:.2f}) is {final_excess:.2f}."
