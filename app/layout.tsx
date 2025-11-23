@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import { Analytics } from "@vercel/analytics/next"
-import RandomFavicon from '@/components/RandomFavicon'
+// import RandomFavicon from '@/components/RandomFavicon'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -14,15 +14,15 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/favicon-jones-16x16.png', sizes: '16x16', type: 'image/png' },
-      { url: '/favicon-jones-32x32.png', sizes: '32x32', type: 'image/png' },
-      { url: '/favicon-jones.ico', sizes: 'any' },
+      { url: '/favicon-edge-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon-edge-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon-edge.ico', sizes: 'any' },
     ],
     apple: [
-      { url: '/apple-touch-icon-jones.png', sizes: '180x180', type: 'image/png' },
+      { url: '/apple-touch-icon-edge.png', sizes: '180x180', type: 'image/png' },
     ],
   },
-  manifest: '/site-jones.webmanifest',
+  manifest: '/site-edge.webmanifest',
   openGraph: {
     title: 'Edgeworth Box Simulator & Solver',
     description: 'Interactive Edgeworth Box visualization and economics solver. Analyze Pareto efficiency and general equilibrium.',
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     url: 'https://imedgeworthboxingit.app',
     images: [
       {
-        url: '/apple-touch-icon-jones.png',
+        url: '/apple-touch-icon-edge.png',
         width: 180,
         height: 180,
         alt: 'Edgeworth Box Simulator',
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
     card: 'summary',
     title: 'Edgeworth Box Simulator & Solver',
     description: 'Interactive Edgeworth Box visualization and economics solver.',
-    images: ['/apple-touch-icon-jones.png'],
+    images: ['/apple-touch-icon-edge.png'],
   },
   verification: {
     google: 'sYbTbe6tv1L9hwiVASVyUiVokjGaMdmocW7RlnK3NG0',
@@ -77,7 +77,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">
-        <RandomFavicon />
+        {/* <RandomFavicon /> */}
         {children}
         <SpeedInsights />
         <Analytics />
