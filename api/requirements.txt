@@ -4,3 +4,4 @@ Flask
 simpleeval
 flask-cors
 katex
+giacpy

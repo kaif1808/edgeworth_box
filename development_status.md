@@ -1,5 +1,11 @@
 # Development Status
 
+## 2025-11-23
+- **Feature**: Integrated XCas (via `giacpy`) for symbolic differentiation.
+  - **Backend**: Created `api/core/xcas_engine.py` to handle symbolic math operations.
+  - **Integration**: Updated `api/core/economics.py` to prefer symbolic gradients and MRS calculations when available, falling back to numerical methods if not.
+  - **Testing**: Added `tests/test_xcas_integration.py` to verify symbolic logic and fallback mechanisms.
+
 ## 2025-11-22
 - **Feature**: Added support for multiple Walrasian Equilibria.
   - **Backend**: Updated `api/core/economics.py` to use a logarithmic grid scan for price roots, detecting and returning multiple equilibria when they exist.

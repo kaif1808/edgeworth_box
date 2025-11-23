@@ -5,6 +5,10 @@ import ast
 import operator
 from typing import Dict, Any, Tuple, List, Union, Optional
 from simpleeval import simple_eval, SimpleEval, NameNotDefined
+try:
+    from api.core import xcas_engine
+except ImportError:
+    xcas_engine = None # Fallback if import fails
 
 def parse_latex_to_numpy(latex_str: str) -> str:
     """
@@ -33,6 +37,39 @@ def parse_latex_to_numpy(latex_str: str) -> str:
     expr = re.sub(r'(\d)([xy])', r'\1*\2', expr)  # 2x -> 2*x
     
     return expr
+
+def get_computational_formula(u_type: str, params: Dict[str, Any]) -> str:
+    """
+    Returns a clean mathematical string representing the utility function
+    suitable for XCas parsing (no LaTeX).
+    """
+    alpha = params.get('alpha', 0.5)
+    beta = params.get('beta', 0.5)
+    a = params.get('a', 0.0)
+    b = params.get('b', 0.0)
+    
+    if u_type == "Cobb-Douglas" or u_type == "Non-standard Cobb-Douglas":
+        return f"(x^{alpha}) * (y^{beta})"
+    elif u_type == "Perfect Substitutes":
+        return f"{alpha}*x + {beta}*y"
+    elif u_type == "Perfect Complements (Min)": 
+        # Note: Min is often not differentiable at the kink
+        return f"min({alpha}*x, {beta}*y)"
+    elif u_type == "Max Preferences (Convex)": 
+        return f"max({alpha}*x, {beta}*y)"
+    elif u_type == "Quasi-Linear (Shifted Product)": 
+        return f"(x + {a})*(y + {b})"
+    elif u_type == "Satiation (Bliss Point)": 
+        return f"-1*((x - {a})^2 + (y - {b})^2)"
+    elif u_type == "Mixed Cobb-Douglas": 
+        return f"x * (y^{alpha})"
+    elif u_type == "CES":
+        rho = params.get('rho', 0.5)
+        if abs(rho) < 1e-3: return f"(x^{alpha}) * (y^{beta})"
+        return f"({alpha}*x^{rho} + {beta}*y^{rho})^(1/{rho})"
+    elif u_type == "Custom (Enter Formula)":
+        return params.get('formula', 'x*y')
+    return "0"
 
 def evaluate_custom_utility(x: Union[float, np.ndarray], y: Union[float, np.ndarray], formula: str) -> Union[float, np.ndarray]:
     """
@@ -140,23 +177,45 @@ def verify_pareto_efficiency(x: float, y: float, total_x: float, total_y: float,
     Verifies if a point (x, y) is Pareto efficient by checking for local improvements.
     Uses gradients to find potential improvement directions.
     """
-    h = 1e-5
     
-    # 1. Calculate Gradients locally
-    def get_grad(u_func, type_u, params_u, px, py):
+    # Try Symbolic Gradient first
+    gA, gB_wrt_A = None, None
+    
+    if xcas_engine and xcas_engine.is_available():
+        form_A = get_computational_formula(type_A, params_A)
+        form_B = get_computational_formula(type_B, params_B)
+        
+        # Skip symbolic for non-differentiable types like Min/Max
+        if "min" not in form_A and "max" not in form_A:
+            gA = xcas_engine.get_gradient(form_A, x, y)
+            
+        if "min" not in form_B and "max" not in form_B:
+            # For B, evaluate at (total_x - x, total_y - y)
+            # But we need gradient w.r.t (x,y). 
+            # U_B(x_B, y_B) = U_B(Tx - x, Ty - y)
+            # dU_B/dx = (dU_B/dx_B) * (-1)
+            gB_raw = xcas_engine.get_gradient(form_B, total_x - x, total_y - y)
+            if gB_raw is not None:
+                gB_wrt_A = -gB_raw
+
+    # Fallback to Numerical Gradient if symbolic failed or unavailable
+    h = 1e-5
+    def get_grad_num(u_func, type_u, params_u, px, py):
         u0 = u_func(px, py, type_u, params_u)
         ux = (u_func(px + h, py, type_u, params_u) - u0) / h
         uy = (u_func(px, py + h, type_u, params_u) - u0) / h
         return np.array([ux, uy]), u0
 
-    gA, uA_curr = get_grad(utility_func, type_A, params_A, x, y)
+    if gA is None:
+        gA, _ = get_grad_num(utility_func, type_A, params_A, x, y)
     
-    # For B, inputs are (total_x - x, total_y - y).
-    # Gradient w.r.t x, y (A's coords) is -1 * Gradient w.r.t B's inputs
-    # because d(TB - x)/dx = -1.
-    gB_inputs, uB_curr = get_grad(utility_func, type_B, params_B, total_x - x, total_y - y)
-    gB_wrt_A = -gB_inputs 
+    if gB_wrt_A is None:
+        gB_inputs, _ = get_grad_num(utility_func, type_B, params_B, total_x - x, total_y - y)
+        gB_wrt_A = -gB_inputs 
     
+    uA_curr = utility_func(x, y, type_A, params_A)
+    uB_curr = utility_func(total_x - x, total_y - y, type_B, params_B)
+
     # Normalize gradients to get directions (avoid division by zero)
     norm_A = np.linalg.norm(gA)
     norm_B = np.linalg.norm(gB_wrt_A)
@@ -228,6 +287,16 @@ def calculate_mrs(x: float, y: float, u_type: str, params: Dict[str, Any]) -> fl
     Returns:
         float: The MRS at the point (x, y). Returns np.inf if MRS is infinite.
     """
+    # Try Symbolic Calculation first
+    if xcas_engine and xcas_engine.is_available():
+        formula = get_computational_formula(u_type, params)
+        # Skip Min/Max/Custom if complex
+        if "min" not in formula and "max" not in formula:
+            mrs = xcas_engine.calculate_mrs(formula, x, y)
+            if mrs is not None:
+                return mrs
+
+    # Fallback to Numerical
     h = 1e-5
     u0 = utility_func(x, y, u_type, params)
     ux = (utility_func(x + h, y, u_type, params) - u0) / h
@@ -235,7 +304,7 @@ def calculate_mrs(x: float, y: float, u_type: str, params: Dict[str, Any]) -> fl
     
     if abs(uy) < 1e-9:
         if abs(ux) < 1e-9: return 0.0
-        return np.inf
+        return np.inf * np.sign(ux)
     return ux / uy
 
 def get_demand(u_type: str, params: Dict[str, Any], px: float, py: float, income: float, total_x_limit: Optional[float] = None, total_y_limit: Optional[float] = None) -> Tuple[float, float]:
@@ -509,7 +578,7 @@ def solve_contract_curve(total_x: float, total_y: float, type_A: str, params_A: 
                             best_u = ua
                             best_p = res_retry.x
                             last_x = res_retry.x
-
+                            
             if best_p is not None:
                 ub_real = utility_func(total_x - best_p[0], total_y - best_p[1], type_B, params_B)
                 if ub_real >= ub_val - 0.1: # Relaxed tolerance for constraint
