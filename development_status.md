@@ -1,6 +1,9 @@
 # Development Status
 
 ## 2025-11-23
+- **Infrastructure**: Replaced `giacpy` with `SymPy` to resolve Vercel deployment build errors (C++ compilation failure).
+  - **Backend**: Refactored `api/core/xcas_engine.py` to implement symbolic differentiation using `SymPy`'s pure Python engine, maintaining full API compatibility.
+  - **Verification**: Confirmed parity of MRS and Gradient calculations via `tests/test_sympy_migration.py` (integrated into suite).
 - **Feature**: Integrated XCas (via `giacpy`) for symbolic differentiation.
   - **Backend**: Created `api/core/xcas_engine.py` to handle symbolic math operations.
   - **Integration**: Updated `api/core/economics.py` to prefer symbolic gradients and MRS calculations when available, falling back to numerical methods if not.

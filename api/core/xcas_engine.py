@@ -3,23 +3,21 @@ import re
 from typing import Optional, Tuple, Union, List
 
 try:
-    import giacpy
-    from giacpy import giac
-    GIAC_AVAILABLE = True
+    import sympy
+    SYMPY_AVAILABLE = True
 except ImportError:
-    GIAC_AVAILABLE = False
-    print("Warning: giacpy not found. Symbolic differentiation will be unavailable.")
+    SYMPY_AVAILABLE = False
+    print("Warning: sympy not found. Symbolic differentiation will be unavailable.")
 
 def is_available() -> bool:
-    """Check if XCas/Giac is available."""
-    return GIAC_AVAILABLE
+    """Check if SymPy is available."""
+    return SYMPY_AVAILABLE
 
-def clean_formula_for_giac(formula: str) -> str:
+def clean_formula_for_sympy(formula: str) -> str:
     """
-    Preprocesses a formula string to be compatible with Giac.
+    Preprocesses a formula string to be compatible with SymPy.
     - Replaces numpy functions with standard math names.
-    - Handles power operator replacement if necessary (Giac uses ^, Python uses **).
-    - Ensures explicit multiplication where needed (though Giac is generally good at implicit).
+    - Handles power operator replacement if necessary.
     """
     if not formula:
         return "0"
@@ -27,17 +25,18 @@ def clean_formula_for_giac(formula: str) -> str:
     # Basic replacements
     expr = formula.lower()
     replacements = {
-        "np.log": "ln", "np.exp": "exp", "np.sqrt": "sqrt",
-        "np.minimum": "min", "np.maximum": "max",
-        "log": "ln",
-        "**": "^" # Ensure power syntax is correct for Giac
+        "np.log": "log", "np.exp": "exp", "np.sqrt": "sqrt",
+        "np.minimum": "Min", "np.maximum": "Max",
+        "log": "log",
+        "ln": "log", # Handle ln as log
+        "^": "**" # Ensure power syntax is correct for SymPy
     }
     for py, g in replacements.items():
         expr = expr.replace(py, g)
         
     return expr
 
-def calculate_mrs(formula: str, x_val: float, y_val: float) -> float:
+def calculate_mrs(formula: str, x_val: float, y_val: float) -> Optional[float]:
     """
     Calculates the Marginal Rate of Substitution (MRS) using symbolic differentiation.
     MRS = (dU/dx) / (dU/dy)
@@ -51,27 +50,27 @@ def calculate_mrs(formula: str, x_val: float, y_val: float) -> float:
         float: The MRS at (x_val, y_val). Returns np.inf or 0.0 appropriately.
                Returns None if symbolic calculation fails.
     """
-    if not GIAC_AVAILABLE:
+    if not SYMPY_AVAILABLE:
         return None
 
     try:
         # 1. Setup variables
-        x = giac('x')
-        y = giac('y')
+        x, y = sympy.symbols('x y')
         
         # 2. Parse formula
-        cleaned_formula = clean_formula_for_giac(formula)
-        u = giac(cleaned_formula)
+        cleaned_formula = clean_formula_for_sympy(formula)
+        # parse_expr with transformations might be needed for implicit mult, 
+        # but economics.py handles it. We use sympify for simplicity.
+        u = sympy.sympify(cleaned_formula)
         
         # 3. Differentiate
-        du_dx = u.diff(x)
-        du_dy = u.diff(y)
+        du_dx = sympy.diff(u, x)
+        du_dy = sympy.diff(u, y)
         
         # 4. Evaluate
-        # subs syntax: expression.subs([var1, var2], [val1, val2])
-        # Note: inputs to subs should be lists
-        val_du_dx = float(du_dx.subs([x, y], [x_val, y_val]))
-        val_du_dy = float(du_dy.subs([x, y], [x_val, y_val]))
+        # use subs and evalf
+        val_du_dx = float(du_dx.subs({x: x_val, y: y_val}))
+        val_du_dy = float(du_dy.subs({x: x_val, y: y_val}))
         
         # 5. Calculate Ratio
         if abs(val_du_dy) < 1e-9:
@@ -83,7 +82,7 @@ def calculate_mrs(formula: str, x_val: float, y_val: float) -> float:
         
     except Exception as e:
         # Fallback or logging could happen here
-        # print(f"XCas Error in calculate_mrs: {e}")
+        # print(f"SymPy Error in calculate_mrs: {e}")
         return None
 
 def get_gradient(formula: str, x_val: float, y_val: float) -> Optional[np.ndarray]:
@@ -94,25 +93,23 @@ def get_gradient(formula: str, x_val: float, y_val: float) -> Optional[np.ndarra
         np.ndarray: The gradient vector.
         None: If symbolic calculation fails.
     """
-    if not GIAC_AVAILABLE:
+    if not SYMPY_AVAILABLE:
         return None
 
     try:
-        x = giac('x')
-        y = giac('y')
+        x, y = sympy.symbols('x y')
         
-        cleaned_formula = clean_formula_for_giac(formula)
-        u = giac(cleaned_formula)
+        cleaned_formula = clean_formula_for_sympy(formula)
+        u = sympy.sympify(cleaned_formula)
         
-        du_dx = u.diff(x)
-        du_dy = u.diff(y)
+        du_dx = sympy.diff(u, x)
+        du_dy = sympy.diff(u, y)
         
-        val_du_dx = float(du_dx.subs([x, y], [x_val, y_val]))
-        val_du_dy = float(du_dy.subs([x, y], [x_val, y_val]))
+        val_du_dx = float(du_dx.subs({x: x_val, y: y_val}))
+        val_du_dy = float(du_dy.subs({x: x_val, y: y_val}))
         
         return np.array([val_du_dx, val_du_dy])
         
     except Exception as e:
-        # print(f"XCas Error in get_gradient: {e}")
+        # print(f"SymPy Error in get_gradient: {e}")
         return None
-
