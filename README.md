@@ -80,3 +80,4 @@ vercel dev
 - `tests/test_pareto_examples.py` – canonical economic scenarios that validate solver correctness.
 
 
+
