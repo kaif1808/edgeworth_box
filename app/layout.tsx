@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import { Analytics } from "@vercel/analytics/next"
-// import RandomFavicon from '@/components/RandomFavicon'
+import RandomFavicon from '@/components/RandomFavicon'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -53,34 +53,12 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'SoftwareApplication',
-    name: 'Edgeworth Box Simulator & Solver',
-    applicationCategory: 'EducationalApplication',
-    operatingSystem: 'Any',
-    description: 'Free online Edgeworth Box simulator and solver. Visualize Pareto efficiency, Contract Curves, and Walrasian Equilibrium in this interactive economics demonstrator.',
-    url: 'https://imedgeworthboxingit.app',
-    offers: {
-      '@type': 'Offer',
-      price: '0',
-      priceCurrency: 'USD',
-    },
-  };
-
   return (
     <html lang="en">
-      <head>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
-      </head>
       <body className="min-h-screen bg-background font-sans antialiased">
-        {/* <RandomFavicon /> */}
+        <RandomFavicon />
         {children}
         <SpeedInsights />
-        <Analytics />
       </body>
     </html>
   )

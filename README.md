@@ -79,3 +79,5 @@ vercel dev
 - `development_status.md` – day-by-day changelog of major features and fixes.
 - `tests/test_pareto_examples.py` – canonical economic scenarios that validate solver correctness.
 
+
+
