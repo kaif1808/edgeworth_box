@@ -1,3 +1,7 @@
+/**
+ * Deprecated: RandomFavicon is no longer mounted.
+ * Kept for reference in case dynamic favicon rotation is needed again.
+ */
 'use client'
 
 import { useEffect } from 'react'
